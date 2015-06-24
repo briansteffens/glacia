@@ -20,3 +20,10 @@ apt-get install -y git
 # app config
 echo 'PYTHONPATH="/vagrant"' >> /home/vagrant/.bashrc
 echo 'export PYTHONPATH' >> /home/vagrant/.bashrc
+
+echo '[db]' > /etc/glacia.conf
+echo 'host = "localhost"' >> /etc/glacia.conf
+echo 'port = 3306' >> /etc/glacia.conf
+echo 'user = "root"' >> /etc/glacia.conf
+echo 'passwd = "rootpass"' >> /etc/glacia.conf
+echo 'db = "__glacia"' >> /etc/glacia.conf
