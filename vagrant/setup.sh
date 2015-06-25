@@ -13,6 +13,10 @@ echo mysql-server mysql-server/root_password_again password rootpass | sudo debc
 apt-get install -y mysql-server
 mysql --user=root --password=rootpass --execute="drop database if exists __glacia; create database __glacia;"
 mysql --user=root --password=rootpass __glacia < "/vagrant/vagrant/__glacia.sql"
+mysql --user=root --password=rootpass --execute="grant all privileges on *.* to 'user'@'%' identified by 'pass';"
+mysql --user=root --password=rootpass --execute="grant all privileges on *.* to 'vagrant'@'localhost';"
+sed 's/bind-address\t\t= 127.0.0.1/bind-address\t\t= 0.0.0.0/' /etc/mysql/my.cnf
+service mysql restart
 
 # git
 apt-get install -y git

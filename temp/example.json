@@ -1,0 +1,14 @@
+[
+  ["def", "calc", "int x", [
+    ["print", "$x"],
+    ["ret", "bu it ar"]
+  ]],
+  ["def", "main", [
+    ["var", "string", "$r", "greetings"],
+    ["print", "$r"],
+    ["set", "$r", "salutations"],
+    ["print", "$r"],
+    ["call", "$r", "calc", "14"],
+    ["print", "$r"]
+  ]]
+]
