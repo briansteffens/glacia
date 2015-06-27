@@ -4,8 +4,8 @@ from contextlib import contextmanager
 
 import pymysql
 
-from glacia.common import divider
-from glacia.tokenizer import tokenize
+from glacia.debug import divider, print_tokens
+from glacia.lexer import lex
 
 
 # Read config file
@@ -370,16 +370,23 @@ class Interpreter(object):
             self.db.commit()
 
 
-with close_after(Database()) as conn:
-    with open('/vagrant/temp/first.glacia', 'rb') as f:
-        raw = f.read().decode('utf-8')
+if __name__ == '__main__':
+    with close_after(Database()) as conn:
+        with open('/vagrant/temp/first.glacia', 'rb') as f:
+            raw = f.read().decode('utf-8')
 
-    divider('Source code')
-    print(raw)
+        divider('Source code')
+        print(raw)
 
-    ts = tokenize(raw, stdout_debug=True)
+        divider('Partially tokenized (still with whitespace)')
+        tokens = lex(raw, preserve_whitespace=True)
+        print(print_tokens(tokens))
 
-    #with open('/vagrant/temp/first.json', 'rb') as f:
-    #    load(conn, json.loads(f.read().decode('utf-8')))
+        divider('Tokenized')
+        tokens = lex(raw)
+        print(print_tokens(tokens, identifier_color='switch'))
 
-    #Interpreter(conn).run()
+        #with open('/vagrant/temp/first.json', 'rb') as f:
+        #    load(conn, json.loads(f.read().decode('utf-8')))
+
+        #Interpreter(conn).run()
