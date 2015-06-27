@@ -4,6 +4,9 @@ from contextlib import contextmanager
 
 import pymysql
 
+from glacia.common import divider
+from glacia.tokenizer import tokenize
+
 
 # Read config file
 import configparser
@@ -368,7 +371,15 @@ class Interpreter(object):
 
 
 with close_after(Database()) as conn:
-    with open('/vagrant/temp/example.json', 'rb') as f:
-        load(conn, json.loads(f.read().decode('utf-8')))
+    with open('/vagrant/temp/first.glacia', 'rb') as f:
+        raw = f.read().decode('utf-8')
 
-    Interpreter(conn).run()
+    divider('Source code')
+    print(raw)
+
+    ts = tokenize(raw, stdout_debug=True)
+
+    #with open('/vagrant/temp/first.json', 'rb') as f:
+    #    load(conn, json.loads(f.read().decode('utf-8')))
+
+    #Interpreter(conn).run()

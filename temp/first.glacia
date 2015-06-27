@@ -1,0 +1,31 @@
+int f(int x)
+{
+    return x * 5;
+}
+
+class A : BaseThing
+{
+    public static very(string str)
+    {
+        static int i = 0;
+        i++;
+        return str + " " + i.str();
+    }
+
+    public int[] arr = new int[100];
+}
+
+int main()
+{
+    print("greetings");
+    print("hello\nhow\n\"are\"\nyou");
+    print("");
+    print(f(3));
+    if (f(2) == 10)
+    {
+        print("success");
+    }
+
+    A a = new A();
+    print(a.arr[3 + f(4)].str());
+}
