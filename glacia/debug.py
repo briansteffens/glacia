@@ -34,16 +34,12 @@ def divider(s):
     print('\n--- '+s+' '+''.join(['-' for d in range(80 - len(s) - 5)])+'\n')
 
 
-def print_tokens(ts, identifier_color='purple'):
+def print_tokens(ts, identifier_color='purple', line_width=None):
     def print_token(token):
         if token.kind == 'char':
             return token.val
 
-        v = token.val
-        if token.kind == 'string':
-            v = '"' + v + '"'
-
-        return color.print(v, {
+        return color.print(token.val, {
             'identifier': identifier_color,
             'semicolon': 'yellow',
             'operator': 'red',
@@ -52,4 +48,23 @@ def print_tokens(ts, identifier_color='purple'):
             'structure': 'blue',
         }[token.kind])
 
-    return ''.join([print_token(c) for c in ts])
+    ret = ''
+    i = 0
+
+    for c in ts:
+        if c.val:
+            i += len(c.val)
+
+        if line_width and i >= line_width:
+            i = len(c.val)
+            ret += '\n'
+
+        ret += print_token(c)
+
+    return ret
+
+
+def print_nodes(node, depth=-1):
+    return (''.join(['\t' for t in range(depth)]) +
+            print_tokens(node.tokens, identifier_color='switch') + '\n' +
+            ''.join([print_nodes(c, depth + 1) for c in node.nodes]))

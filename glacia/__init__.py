@@ -4,8 +4,9 @@ from contextlib import contextmanager
 
 import pymysql
 
-from glacia.debug import divider, print_tokens
+from glacia.debug import divider, print_tokens, print_nodes
 from glacia.lexer import lex
+from glacia.parser import parse
 
 
 # Read config file
@@ -378,13 +379,17 @@ if __name__ == '__main__':
         divider('Source code')
         print(raw)
 
-        divider('Partially tokenized (still with whitespace)')
+        divider('Partially lexed (still with whitespace)')
         tokens = lex(raw, preserve_whitespace=True)
         print(print_tokens(tokens))
 
-        divider('Tokenized')
+        divider('Lexed')
         tokens = lex(raw)
-        print(print_tokens(tokens, identifier_color='switch'))
+        print(print_tokens(tokens, identifier_color='switch', line_width=60))
+
+        nodes = parse(tokens)
+        divider('Parsed')
+        print(print_nodes(nodes).strip())
 
         #with open('/vagrant/temp/first.json', 'rb') as f:
         #    load(conn, json.loads(f.read().decode('utf-8')))
