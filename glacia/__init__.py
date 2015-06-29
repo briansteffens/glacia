@@ -4,9 +4,10 @@ from contextlib import contextmanager
 
 import pymysql
 
-from glacia.debug import divider, print_tokens, print_nodes
+from glacia.debug import divider, print_tokens, print_nodes, print_program
 from glacia.lexer import lex
 from glacia.parser import parse
+from glacia.semantics import analyze
 
 
 # Read config file
@@ -390,6 +391,10 @@ if __name__ == '__main__':
         nodes = parse(tokens)
         divider('Parsed')
         print(print_nodes(nodes).strip())
+
+        #program = analyze(nodes)
+        #divider('Analyzed')
+        #print(print_program(program))
 
         #with open('/vagrant/temp/first.json', 'rb') as f:
         #    load(conn, json.loads(f.read().decode('utf-8')))

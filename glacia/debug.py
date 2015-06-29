@@ -39,6 +39,17 @@ def print_tokens(ts, identifier_color='purple', line_width=None):
         if token.kind == 'char':
             return token.val
 
+        # If the token has sub-tokens
+        if hasattr(token, 'tokens'):
+            val = ''.join([print_token(t) for t in token.tokens])
+
+            if token.kind == 'parenthesis':
+                return '(' + val + ')'
+            elif token.kind == 'square':
+                return '[' + val + ']'
+            else:
+                raise Exception('Invalid StructureToken.')
+
         return color.print(token.val, {
             'identifier': identifier_color,
             'semicolon': 'yellow',
@@ -46,6 +57,8 @@ def print_tokens(ts, identifier_color='purple', line_width=None):
             'string': 'green',
             'numeric': 'cyan',
             'structure': 'blue',
+            'parenthesis': 'blue',
+            'square': 'blue',
         }[token.kind])
 
     ret = ''
@@ -68,3 +81,16 @@ def print_nodes(node, depth=-1):
     return (''.join(['\t' for t in range(depth)]) +
             print_tokens(node.tokens, identifier_color='switch') + '\n' +
             ''.join([print_nodes(c, depth + 1) for c in node.nodes]))
+
+
+def print_program(program):
+    ret = ''
+
+    for function in program.functions:
+        ret += str(function) + '\n'
+        continue
+        ret += 'function ' + function.return_type + ' ' + function.name + '('
+        ret += ', '.join([p.type + ' ' + p.name for p in function.params]) + ')'
+        ret += '\n'
+
+    return ret
