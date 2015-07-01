@@ -10,7 +10,12 @@ class Token(object):
         self.val = val
 
     def __str__(self):
-        return self.kind+'<'+(''+self.val if self.val else '')+'>'
+        v = self.val if self.val else ''
+
+        if hasattr(self, 'tokens'):
+            v = ','.join([str(t) for t in self.tokens])
+
+        return self.kind+'<'+v+'>'
 
 
 def lex(code, preserve_whitespace=False):

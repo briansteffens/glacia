@@ -318,7 +318,7 @@ def identify_bindings(tokens):
     # Helper function for checking that bindings alternate between identifiers
     # and either dot-accessors or indexers (square brackets).
     def check_alt(t1, t2):
-        return (t1.kind == 'identifier' and (
+        return ((t1.kind == 'identifier' or t1.kind == 'square') and (
             (t2.kind == 'operator' and t2.val == '.') or
             (t2.kind == 'square')
         ))
