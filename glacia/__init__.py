@@ -392,9 +392,9 @@ if __name__ == '__main__':
         divider('Parsed')
         print(print_nodes(nodes).strip())
 
-        #program = analyze(nodes)
-        #divider('Analyzed')
-        #print(print_program(program))
+        program = analyze(nodes)
+        divider('Analyzed')
+        print(print_program(program))
 
         #with open('/vagrant/temp/first.json', 'rb') as f:
         #    load(conn, json.loads(f.read().decode('utf-8')))

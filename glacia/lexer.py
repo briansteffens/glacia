@@ -9,6 +9,9 @@ class Token(object):
         self.kind = kind
         self.val = val
 
+    def __str__(self):
+        return self.kind+'<'+(''+self.val if self.val else '')+'>'
+
 
 def lex(code, preserve_whitespace=False):
     """
