@@ -1,21 +1,5 @@
 
-class Token(object):
-    """
-    Represents a character or token in source code.
-
-    """
-
-    def __init__(self, kind, val):
-        self.kind = kind
-        self.val = val
-
-    def __str__(self):
-        v = self.val if self.val else ''
-
-        if hasattr(self, 'tokens'):
-            v = ','.join([str(t) for t in self.tokens])
-
-        return self.kind+'<'+v+'>'
+from glacia import Token
 
 
 def lex(code, preserve_whitespace=False):

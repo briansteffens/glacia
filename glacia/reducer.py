@@ -1,6 +1,5 @@
 
-from glacia.lexer import Token
-from glacia.semantics import Assignment, Call, Binding, Expression
+from glacia import Assignment, Call, Binding, Expression, Token
 
 
 class CallFound(object):

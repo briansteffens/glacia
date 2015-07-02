@@ -1,5 +1,5 @@
 
-from glacia.lexer import Token
+from glacia import Token
 
 
 class StructureToken(Token):
