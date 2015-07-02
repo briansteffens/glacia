@@ -8,6 +8,7 @@ from glacia.debug import divider, print_tokens, print_nodes, print_program
 from glacia.lexer import lex
 from glacia.parser import parse
 from glacia.semantics import analyze
+from glacia.reducer import reduce
 
 
 # Read config file
@@ -394,6 +395,10 @@ if __name__ == '__main__':
 
         program = analyze(nodes)
         divider('Analyzed')
+        print(print_program(program))
+
+        reduce(program)
+        divider('Reduced')
         print(print_program(program))
 
         #with open('/vagrant/temp/first.json', 'rb') as f:

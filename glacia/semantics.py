@@ -31,9 +31,11 @@ class Binding(object):
 
 class Expression(object):
 
-    def __init__(self, tokens):
+    def __init__(self, tokens, process_calls=True):
         self.tokens = tokens
-        identify_calls(self)
+
+        if process_calls:
+            identify_calls(self)
 
     def __str__(self):
         return color.print('expr<', 'green')+\
