@@ -85,3 +85,20 @@ def print_nodes(node, depth=-1):
 
 def print_program(program):
     return '\n'.join([str(f) for f in program.functions]) + '\n'
+
+
+def print_db(db):
+    ret = ''
+
+    for r in db.all('select * from functions;'):
+        ret += '\t'.join([r['id'],r['return_type'],r['label'],
+                          r['arguments']])+'\n'
+
+    ret += '\n'
+
+    for r in db.all('select * from instructions;'):
+        ret += '\t'.join([r[c] if r[c] else 'NUL'
+                          for c in ['id','function_id','parent_id',
+                                    'previous_id','code']]) + '\n'
+
+    return ret

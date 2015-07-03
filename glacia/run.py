@@ -1,6 +1,7 @@
 import json
 
-from glacia.debug import divider, print_tokens, print_nodes, print_program
+from glacia.debug import divider, print_tokens, print_nodes, print_program, \
+                         print_db
 from glacia import Database, close_after
 from glacia.lexer import lex
 from glacia.parser import parse
@@ -252,6 +253,8 @@ if __name__ == '__main__':
 
     with close_after(Database()) as conn:
         load(conn, generated)
+        divider('Loaded DBIL')
+        print(print_db(conn))
 
     #with open('/vagrant/temp/first.json', 'rb') as f:
     #    load(conn, json.loads(f.read().decode('utf-8')))
