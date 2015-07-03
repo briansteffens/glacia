@@ -1,5 +1,97 @@
+import random
+from contextlib import contextmanager
+
+import pymysql
 
 from glacia.debug import color
+
+
+# Read config file
+import configparser
+config = configparser.RawConfigParser()
+config.read('/etc/glacia.conf')
+
+
+@contextmanager
+def close_after(ret):
+    try:
+        yield ret
+    finally:
+        ret.close()
+
+
+class Database(object):
+    def __init__(self):
+        self.__conn = None
+
+    def conn(self):
+        if self.__conn is None:
+            def rq(s):
+                if s.startswith('"') and s.endswith('"'):
+                    s = s[1:-1]
+                return s
+
+            self.__conn = pymysql.connect(host=rq(config.get('db', 'host')),
+                                          port=int(config.get('db', 'port')),
+                                          user=rq(config.get('db', 'user')),
+                                          passwd=rq(config.get('db', 'passwd')),
+                                          db=rq(config.get('db', 'db')))
+
+        return self.__conn
+
+    def close(self):
+        if self.__conn is not None:
+            self.__conn.close()
+
+    def commit(self):
+        self.__conn.commit()
+
+    def cur(self):
+        return close_after(self.conn().cursor(pymysql.cursors.DictCursor))
+
+    def cmd(self, *args):
+        with self.cur() as cur:
+            cur.execute(*args)
+            return cur.rowcount
+
+    def autoid(self, *args):
+        for i in range(10):
+            # Randomly generate an ID
+            new = ""
+            for j in range(3):
+                c = 48 + random.randrange(0, 36)
+                if c > 57: c += 39
+                new += chr(c)
+
+            temp_args = []
+            for arg in args:
+                temp_args.append(arg)
+
+            try:
+                temp_args[0] = args[0].replace('{$id}', "'" + new + "'")
+                self.cmd(*temp_args)
+                return new
+            except pymysql.err.IntegrityError as e:
+                print("id collision")
+                if i == 9:
+                    raise e
+
+    def res(self, *args):
+        with self.cur() as cursor:
+            cursor.execute(*args)
+            for row in cursor:
+                yield row
+
+    def all(self, *args):
+        return [row for row in self.res(*args)]
+
+    def first(self, *args):
+        for row in self.res(*args):
+            return row
+
+    def scalar(self, *args):
+        for k,v in self.first(*args).items():
+            return v
 
 
 class Token(object):
@@ -212,3 +304,5 @@ def identify_calls(expr):
         expr.tokens.insert(i, Call(token, parenthesis.tokens))
 
         parenthesis = None
+
+

@@ -9,6 +9,7 @@ def generate(program):
 
     return [{
         'cls': 'function',
+        'name': f.name,
         'return_type': f.return_type,
         'params': [{
             'cls': 'param',

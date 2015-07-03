@@ -2,25 +2,11 @@ create table functions
 (
     id char(3)
 ,   label varchar(255)
+,   return_type varchar(255)
+,   arguments text
 
 ,   primary key (id)
 ,   unique (label)
-);
-
-/* The arguments taken by functions */
-create table arguments
-(
-    id char(3)
-,   function_id char(3)
-,   label varchar(255)
-,   ordinal int
-,   type varchar(16)
-,   val varchar(255)
-
-,   primary key (id)
-,   unique (function_id, label)
-,   unique (function_id, ordinal)
-,   foreign key (function_id) references functions (id)
 );
 
 create table instructions
@@ -29,25 +15,13 @@ create table instructions
 ,   function_id char(3) null
 ,   parent_id char(3) null
 ,   previous_id char(3) null
-,   instruction varchar(8)
+,   code text
 
 ,   primary key (id)
 ,   unique (function_id, parent_id, previous_id)
 ,   foreign key (function_id) references functions (id)
 ,   foreign key (parent_id) references instructions (id)
 ,   foreign key (previous_id) references instructions (id)
-);
-
-create table parameters
-(
-    id char(3)
-,   instruction_id char(3)
-,   ordinal int
-,   val text
-
-,   primary key (id)
-,   unique (instruction_id, ordinal)
-,   foreign key (instruction_id) references instructions (id)
 );
 
 create table threads

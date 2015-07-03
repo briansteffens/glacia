@@ -1,168 +1,13 @@
 import json
-import random
-from contextlib import contextmanager
-
-import pymysql
 
 from glacia.debug import divider, print_tokens, print_nodes, print_program
+from glacia import Database, close_after
 from glacia.lexer import lex
 from glacia.parser import parse
 from glacia.semantics import analyze
 from glacia.reducer import reduce
 from glacia.generator import generate
-
-
-# Read config file
-import configparser
-config = configparser.RawConfigParser()
-config.read('/etc/glacia.conf')
-
-
-@contextmanager
-def close_after(ret):
-    try:
-        yield ret
-    finally:
-        ret.close()
-
-
-class Database(object):
-    def __init__(self):
-        self.__conn = None
-
-    def conn(self):
-        if self.__conn is None:
-            def rq(s):
-                if s.startswith('"') and s.endswith('"'):
-                    s = s[1:-1]
-                return s
-
-            self.__conn = pymysql.connect(host=rq(config.get('db', 'host')),
-                                          port=int(config.get('db', 'port')),
-                                          user=rq(config.get('db', 'user')),
-                                          passwd=rq(config.get('db', 'passwd')),
-                                          db=rq(config.get('db', 'db')))
-
-        return self.__conn
-
-    def close(self):
-        if self.__conn is not None:
-            self.__conn.close()
-
-    def commit(self):
-        self.__conn.commit()
-
-    def cur(self):
-        return close_after(self.conn().cursor(pymysql.cursors.DictCursor))
-
-    def cmd(self, *args):
-        with self.cur() as cur:
-            cur.execute(*args)
-            return cur.rowcount
-
-    def autoid(self, *args):
-        for i in range(10):
-            # Randomly generate an ID
-            new = ""
-            for j in range(3):
-                c = 48 + random.randrange(0, 36)
-                if c > 57: c += 39
-                new += chr(c)
-
-            temp_args = []
-            for arg in args:
-                temp_args.append(arg)
-
-            try:
-                temp_args[0] = args[0].replace('{$id}', "'" + new + "'")
-                self.cmd(*temp_args)
-                return new
-            except pymysql.err.IntegrityError as e:
-                print("id collision")
-                if i == 9:
-                    raise e
-
-    def res(self, *args):
-        with self.cur() as cursor:
-            cursor.execute(*args)
-            for row in cursor:
-                yield row
-
-    def all(self, *args):
-        return [row for row in self.res(*args)]
-
-    def first(self, *args):
-        for row in self.res(*args):
-            return row
-
-    def scalar(self, *args):
-        for k,v in self.first(*args).items():
-            return v
-
-
-def load(db, srctree):
-    # Clear existing program
-    db.cmd('set foreign_key_checks = 0;')
-    for table in ['locals','calls','threads','parameters',
-                  'instructions','functions','arguments']:
-        db.cmd('delete from ' + table + ';')
-    db.cmd('set foreign_key_checks = 1;')
-
-    def loadinstructions(arr, function_id, inst_id):
-        prev = None
-        for el in arr:
-            prev = loadinstruction(el, function_id, inst_id, prev)
-
-    def loadinstruction(inst, function_id, parent_id, previous_id):
-        inst_id = db.autoid("insert into instructions (" +
-                                "id, function_id, parent_id, previous_id, " +
-                                "instruction" +
-                            ") values (" +
-                                "{$id}, %s, %s, %s, %s" +
-                            ");",
-                            (function_id, parent_id, previous_id, inst[0],))
-
-        ordinal = 0
-        for arg in inst[1:]:
-            if isinstance(arg, list) and not isinstance(arg, str):
-                continue
-
-            db.autoid("insert into parameters (" +
-                        "id, instruction_id, ordinal, val" +
-                      ") values (" +
-                        "{$id}, %s, %s, %s" +
-                      ");",
-                      (inst_id, ordinal, arg,))
-            ordinal += 1
-
-        if isinstance(inst[-1], list) and not isinstance(inst[-1], str):
-            loadinstructions(inst[-1], function_id, inst_id)
-
-        return inst_id
-
-    # Load new program
-    for function in srctree:
-        func_id = db.autoid("insert into functions (id, label) " +
-                            "values ({$id}, %s);",
-                            function[1])
-
-        ordinal = 0
-        for arg in function[2:-1]:
-            parts = arg.split(' ')
-
-            if len(parts) != 2:
-                raise Exception('Invalid argument syntax.')
-
-            db.autoid("insert into arguments (id, function_id, " +
-                      "label, ordinal, type) " +
-                      "values ({$id}, %s, %s, %s, %s);",
-                      (func_id, parts[1], ordinal, parts[0],))
-
-            ordinal += 1
-
-        loadinstructions(function[-1], func_id, None)
-
-    db.commit()
+from glacia.loader import load
 
 
 class Interpreter(object):
@@ -375,47 +220,40 @@ class Interpreter(object):
 
 
 if __name__ == '__main__':
+    with open('/vagrant/temp/first.glacia', 'rb') as f:
+        raw = f.read().decode('utf-8')
+
+    divider('Source code')
+    print(raw)
+
+    divider('Partially lexed (still with whitespace)')
+    tokens = lex(raw, preserve_whitespace=True)
+    print(print_tokens(tokens))
+
+    divider('Lexed')
+    tokens = lex(raw)
+    print(print_tokens(tokens, identifier_color='switch', line_width=60))
+
+    nodes = parse(tokens)
+    divider('Parsed')
+    print(print_nodes(nodes).strip())
+
+    program = analyze(nodes)
+    divider('Analyzed')
+    print(print_program(program))
+
+    reduce(program)
+    divider('Reduced')
+    print(print_program(program))
+
+    generated = generate(program)
+    divider('Generated DBIL')
+    print(json.dumps(generated, indent=4, sort_keys=True))
+
     with close_after(Database()) as conn:
-        with open('/vagrant/temp/first.glacia', 'rb') as f:
-            raw = f.read().decode('utf-8')
+        load(conn, generated)
 
-        divider('Source code')
-        print(raw)
+    #with open('/vagrant/temp/first.json', 'rb') as f:
+    #    load(conn, json.loads(f.read().decode('utf-8')))
 
-        divider('Partially lexed (still with whitespace)')
-        tokens = lex(raw, preserve_whitespace=True)
-        print(print_tokens(tokens))
-
-        divider('Lexed')
-        tokens = lex(raw)
-        print(print_tokens(tokens, identifier_color='switch', line_width=60))
-
-        nodes = parse(tokens)
-        divider('Parsed')
-        print(print_nodes(nodes).strip())
-
-        program = analyze(nodes)
-        divider('Analyzed')
-        print(print_program(program))
-
-        reduce(program)
-        divider('Reduced')
-        print(print_program(program))
-
-        generated = generate(program)
-        divider('Generated DBIL')
-        print(json.dumps(generated, indent=4, sort_keys=True))
-        divider('Generated DBIL condensed')
-        buf = ''
-        for c in json.dumps(generated):
-            buf += c
-            if len(buf) > 65:
-                print(buf)
-                buf = ''
-        if len(buf) > 0:
-            print(buf)
-
-        #with open('/vagrant/temp/first.json', 'rb') as f:
-        #    load(conn, json.loads(f.read().decode('utf-8')))
-
-        #Interpreter(conn).run()
+    #Interpreter(conn).run()
