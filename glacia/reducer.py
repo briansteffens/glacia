@@ -59,15 +59,18 @@ def reduce_block(instructions, state):
             i += 1
 
         # Recursion
-        if hasattr(instruction, 'nodes'):
-            reduce_block(instruction.nodes, state)
+        if hasattr(instruction, 'body'):
+            reduce_block(instruction.body, state)
 
-        # If all that's left of the instruction after the above is an expression
-        # with a binding in it, it no longer does anything and can be deleted.
-        if isinstance(instruction, Expression) and \
-           len(instruction.tokens) == 1 and \
-           isinstance(instruction.tokens[0], Binding):
-            del instructions[i]
+        if isinstance(instruction, Expression) and len(instruction.tokens) == 1:
+            # If there's just a binding left it can be deleted.
+            if isinstance(instruction.tokens[0], Binding):
+                del instructions[i]
+
+            # If there's just a call left it can be broken out of the expr.
+            if isinstance(instruction.tokens[0], Call):
+                instructions[i] = instruction.tokens[0]
+                i += 1
         else:
             i += 1
 
@@ -86,12 +89,14 @@ def extract_calls(instruction, state):
         while True:
             deepest = None
 
+            total = 0
             for found in find_calls(tokens, 1):
+                total += 1
                 if deepest is None or deepest.depth < found.depth:
                     deepest = found
 
             # No more nested calls
-            if deepest is None:
+            if deepest is None or (total == 1 and len(tokens) == 1):
                 raise StopIteration
 
             # Replace the call with a temporary variable and yield the call

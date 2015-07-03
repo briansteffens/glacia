@@ -51,6 +51,7 @@ class Binding(object):
 class Expression(object):
 
     def __init__(self, tokens, process_calls=True):
+        self.kind = 'expression'
         self.tokens = tokens
 
         if process_calls:
@@ -75,6 +76,7 @@ class Parameter(object):
 class Call(object):
 
     def __init__(self, binding, params):
+        self.kind = 'call'
         self.binding = binding
         self.params = params
 

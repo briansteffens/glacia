@@ -9,6 +9,7 @@ from glacia.lexer import lex
 from glacia.parser import parse
 from glacia.semantics import analyze
 from glacia.reducer import reduce
+from glacia.generator import generate
 
 
 # Read config file
@@ -102,7 +103,7 @@ class Database(object):
 def load(db, srctree):
     # Clear existing program
     db.cmd('set foreign_key_checks = 0;')
-    for table in ['locals','calls','threads','parameters','parameters',
+    for table in ['locals','calls','threads','parameters',
                   'instructions','functions','arguments']:
         db.cmd('delete from ' + table + ';')
     db.cmd('set foreign_key_checks = 1;')
@@ -400,6 +401,19 @@ if __name__ == '__main__':
         reduce(program)
         divider('Reduced')
         print(print_program(program))
+
+        generated = generate(program)
+        divider('Generated DBIL')
+        print(json.dumps(generated, indent=4, sort_keys=True))
+        divider('Generated DBIL condensed')
+        buf = ''
+        for c in json.dumps(generated):
+            buf += c
+            if len(buf) > 65:
+                print(buf)
+                buf = ''
+        if len(buf) > 0:
+            print(buf)
 
         #with open('/vagrant/temp/first.json', 'rb') as f:
         #    load(conn, json.loads(f.read().decode('utf-8')))

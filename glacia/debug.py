@@ -84,13 +84,4 @@ def print_nodes(node, depth=-1):
 
 
 def print_program(program):
-    ret = ''
-
-    for function in program.functions:
-        ret += str(function) + '\n'
-        continue
-        ret += 'function ' + function.return_type + ' ' + function.name + '('
-        ret += ', '.join([p.type + ' ' + p.name for p in function.params]) + ')'
-        ret += '\n'
-
-    return ret
+    return '\n'.join([str(f) for f in program.functions]) + '\n'
