@@ -1,35 +1,6 @@
-int inc(int x)
-{
-    return x + 1;
-}
-
-int double(int x)
-{
-    return x * 2;
-}
-
-int incinc(int x)
-{
-    static int r = 0;
-    r = r + 1;
-    return x + r;
-}
-
 int main()
 {
-    print("hello\nhow\n\"are\"\nyou");
-    print(double(5));
-    if (double(3) > inc(3))
-    {
-        print("success");
-    }
-
-    int y = 7;
-    print(incinc(y));
-    print(incinc(y));
-    y = incinc(y) * 3;
-
-    print(a.arr[3 + inc(y)].str());
-
-    return double(inc(2))
+    int y = 3;
+    int x = (y * 4) / 2;
+    print(x * 5);
 }

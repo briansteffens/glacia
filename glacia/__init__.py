@@ -162,7 +162,17 @@ class Parameter(object):
         self.name = name
 
     def __str__(self):
-        return 'arg<'+self.type+" "+self.name+'>'
+        return 'param<'+self.type+" "+self.name+'>'
+
+
+class Argument(object):
+
+    def __init__(self, expression):
+        self.kind = 'argument'
+        self.expression = expression
+
+    def __str__(self):
+        return 'arg<'+str(self.expression)+'>'
 
 
 class Call(object):
@@ -304,5 +314,3 @@ def identify_calls(expr):
         expr.tokens.insert(i, Call(token, parenthesis.tokens))
 
         parenthesis = None
-
-
