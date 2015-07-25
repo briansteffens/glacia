@@ -99,6 +99,6 @@ def print_db(db):
     for r in db.all('select * from instructions;'):
         ret += '\t'.join([r[c] if r[c] else 'NUL'
                           for c in ['id','function_id','parent_id',
-                                    'previous_id','code']]) + '\n'
+                                    'previous_id','code']]) + '\n\n'
 
     return ret

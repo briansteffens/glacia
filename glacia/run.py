@@ -43,8 +43,8 @@ if __name__ == '__main__':
     parameterize(program)
     divider('Parameterized')
     print(print_program(program))
-    import sys
-    sys.exit()
+    #import sys
+    #sys.exit()
     generated = generate(program)
     divider('Generated DBIL')
     print(json.dumps(generated, indent=4, sort_keys=True))
@@ -54,4 +54,5 @@ if __name__ == '__main__':
         divider('Loaded DBIL')
         print(print_db(conn))
 
+        divider('Program output')
         interpret(conn)

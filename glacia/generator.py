@@ -45,11 +45,6 @@ def generate_block(instructions):
                 call = instruction.expression.tokens[0]
                 r['target'] = generate_any(call.binding)
                 r['params'] = [generate_any(p) for p in call.params]
-                r['cls'] = 'call'
-
-            # set instruction
-            elif instruction.kind == 'assignment':
-                r['cls'] = 'set'
 
         if hasattr(instruction, 'binding'):
             r['binding'] = generate_any(instruction.binding)
@@ -90,5 +85,8 @@ def generate_any(obj):
         # Trim string double-quotes
         if ret['cls'] == 'string':
             ret['val'] = ret['val'][1:-1]
+
+    if hasattr(obj, 'expression'):
+        ret['expression'] = generate_any(obj.expression)
 
     return ret
