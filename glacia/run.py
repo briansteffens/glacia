@@ -46,8 +46,8 @@ if __name__ == '__main__':
     #import sys
     #sys.exit()
     generated = generate(program)
-    divider('Generated DBIL')
-    print(json.dumps(generated, indent=4, sort_keys=True))
+    #divider('Generated DBIL')
+    #print(json.dumps(generated, indent=4, sort_keys=True))
 
     with close_after(Database()) as conn:
         load(conn, generated)

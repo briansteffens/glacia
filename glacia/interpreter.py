@@ -10,6 +10,19 @@ class Interpreter(object):
     def __init__(self, db):
         self.db = db
 
+
+    def run(self):
+        thread_id = self.db.autoid("insert into threads (id) values ({$id});")
+
+        self.call(thread_id, 'main', [])
+
+        try:
+            while self.exec(thread_id):
+                pass
+        finally:
+            self.db.commit()
+
+
     def call(self, thread_id, func_name, arguments, caller_id=None):
         """
         Perform a function call in glacia.
@@ -78,16 +91,29 @@ class Interpreter(object):
 
 
     def step_over(self, instruction_id):
+        """
+        Look up the next instruction without changing hierarchical depth.
+
+        """
         return self.db.first("select * from instructions where previous_id=%s;",
                              (instruction_id,))
 
 
     def step_into(self, instruction_id):
-        return self.db.first("select * from instructions where parent_id = %s;",
+        """
+        Look up the first instruction inside an instruction block.
+
+        """
+        return self.db.first("select * from instructions where parent_id = %s "+
+                             "and previous_id is null;",
                              (instruction_id,))
 
 
     def step_out(self, instruction_id):
+        """
+        Look up the next instruction outside the current block.
+
+        """
         return self.db.first("select * from instructions where previous_id = ("+
                              "select parent_id from instructions " +
                              "where id = %s);",
@@ -150,6 +176,16 @@ class Interpreter(object):
 
 
     def create_local(self, call_id, label, type_, val):
+        """
+        Create and set a local variable.
+
+        Arguments:
+            call_id (str): The call stack frame to create the variable inside.
+            label (str): The name of the variable.
+            type_ (str): The type of the variable.
+            val (any): The initial value to assign to the variable.
+
+        """
         self.db.autoid("insert into locals (id, call_id, label, type, val) " +
                        "values ({$id}, %s, %s, %s, %s);",
                        (call_id, label, type_, val,))
@@ -159,9 +195,13 @@ class Interpreter(object):
         """
         Get a local by label name within the scope of a call stack frame.
 
-        :param call_id: The call stack frame to limit the search to
-        :param label: The local label/name to search by
-        :return: The local in dict format
+        Arguments:
+            call_id (str): The call stack frame to search in.
+            label (str): The name of the local to search for.
+
+        Returns:
+            The local in dict format.
+
         """
         return self.db.first("select * from locals where call_id = %s and " +
                              "label = %s;",
@@ -169,6 +209,15 @@ class Interpreter(object):
 
 
     def set_local(self, call_id, label, val):
+        """
+        Change the value of an existing local.
+
+        Arguments:
+            call_id (str): The call stack frame to search in.
+            label (str): The name of the local to search for.
+            val (any): The new value to assign to the local.
+
+        """
         self.db.cmd("update locals set val = %s where call_id = %s and " +
                     "label = %s;",
                     (val, call_id, label,))
@@ -176,10 +225,14 @@ class Interpreter(object):
 
     def exec(self, thread_id):
         """
-        Run a line in the given thread.
+        Execute an instruction in the given thread.
 
-        :param thread_id: The thread to execute.
-        :return: True if the thread is still running, False if it's stopped.
+        Arguments:
+            thread_id (str): The thread to execute.
+
+        Returns:
+            True if the thread is still running, False if it has stopped.
+
         """
         call = self.current_call(thread_id)
 
@@ -210,7 +263,25 @@ class Interpreter(object):
 
 
     def eval_operator(self, call, left, oper, right):
+        """
+        Evaluate a simple expression such as (x * y) or ("hello " + "world").
+
+        Arguments:
+            call (dict): The call stack frame to execute within.
+            left (dict): The left-side operand.
+            oper (dict): The operator to use.
+            right (dict): The right-side operand.
+
+        Returns:
+            A token in dict-format with the result of the expression.
+
+        """
+
         def coax_literal(lit):
+            """
+            Fill out type information in a literal.
+
+            """
             if isinstance(lit, dict) and 'cls' in lit:
                 ret = {'val': lit['val']}
                 if lit['cls'] == 'numeric':
@@ -224,16 +295,22 @@ class Interpreter(object):
                 return lit
 
         def type_check(token):
+            """
+            Ensure values are the right types.
+
+            """
             if token['type'] == 'int':
                 token['val'] = int(token['val'])
 
             return token
 
+        # Get the operands ready to evaluate.
         left = type_check(coax_literal(left))
         right = type_check(coax_literal(right))
 
         ret = {}
 
+        # Evaluation logic for when both operands are ints.
         if left['type'] == 'int' and right['type'] == 'int':
             ret['type'] = 'int'
 
@@ -252,22 +329,43 @@ class Interpreter(object):
 
             return ret
 
+        # No evaluation logic found.
         print("TYPES: " + str(left['type']) + ", " + str(right['type']))
         raise NotImplemented
 
 
     def eval_expression(self, call, expr):
-        #print("EVAL: " + str(expr))
-        #if isinstance(expr, dict) and 'val' in expr and expr['val'] == '5':
-        #    raise NotImplemented
+        """
+        Evaluate an expression.
+
+        Arguments:
+            call (dict): The call stack frame to evaluate within.
+            expr (dict,list): The token or list of tokens to evaluate.
+
+        Returns:
+            A dict-format token which is the result of the expression being
+            evaluated.
+
+        """
+
+        # If the expression is a list of tokens, perform operator evaluation.
         if isinstance(expr, list) and not isinstance(expr, str):
+            # Recur, evaluating all elements (this needs to be depth-first).
             tokens = [self.eval_expression(call, t) for t in expr]
+
+            # Perform multiple passes over the evaluated tokens in order to
+            # evaluate operators in the correct order (the order of operations).
             for opers in [['^'],['*','/'],['+','-']]:
                 i = 0
                 while i < len(tokens):
                     token = tokens[i]
+
+                    # If the token is an operator, perform operator evaluation.
                     if isinstance(token, dict) and 'cls' in token and \
                        token['cls'] == 'operator' and token['val'] in opers:
+                        # Evaluate the operator and replace this token, the
+                        # previous one, and the next one (all part of the
+                        # evaluation) with the result of the evaluation.
                         tokens[i-1] = self.eval_operator(call, tokens[i-1],
                                                          tokens[i], tokens[i+1])
                         del tokens[i]
@@ -275,53 +373,90 @@ class Interpreter(object):
                         continue
 
                     i += 1
-            #print("TOKENS: " + str(tokens))
+
+            # There should only be one token left after all operator passes.
+            if len(tokens) > 1:
+                raise Exception("Expression could not be completely evaluated.")
+
+            # Return the final evaluated result.
             return self.eval_expression(call, tokens[0])
 
-        # TODO: fix hack
-        if not isinstance(expr, dict):
-            return expr
-
+        # If the expression is already a value, return it.
         if 'type' in expr:
             return expr
 
+        # If the expression is an operator, just return it.
         if expr['cls'] == 'operator':
             return expr
-        elif expr['cls'] == 'numeric':
+
+        # If the expression is a numeric literal, turn it into a typed value.
+        if expr['cls'] == 'numeric':
             return {
                 'type': 'int',
                 'val': expr['val'],
             }
-        elif expr['cls'] == 'string':
+
+        # If the expression is a string literal, turn it into a typed value.
+        if expr['cls'] == 'string':
             return {
                 'type': 'string',
                 'val': expr['val'],
             }
-        elif expr['cls'] == 'binding':
+
+        # If the expression is a binding, evaluate it and return its value.
+        if expr['cls'] == 'binding':
             binding = ''.join([t['val'] for t in expr['tokens']])
             return self.get_local(call['id'], binding)
-        elif expr['cls'] == 'parenthesis':
+
+        # If the expression is parenthesis, recur.
+        if expr['cls'] == 'parenthesis':
             return self.eval_expression(call, expr['tokens'])
-        elif expr['cls'] == 'argument':
+
+        # If the expression is an argument, recur.
+        if expr['cls'] == 'argument':
             return self.eval_expression(call, expr['expression']['tokens'])
-        else:
-            print('Unrecognized token class: ' + expr['cls'])
-            raise NotImplemented
+
+        # No evaluation possible.
+        print('Unrecognized token class: ' + expr['cls'])
+        raise NotImplemented
 
 
     def eval_expression_token(self, call, token):
-        x = self.eval_expression(call, token)
-        if isinstance(x, dict) and 'val' in x:
-            return x['val']
+        """
+        Evaluates an expression and returns the literal value if possible.
+
+        """
+
+        # Perform standard expression evaluation.
+        ret = self.eval_expression(call, token)
+
+        # Unpack the literal value of the result if present.
+        if isinstance(ret, dict) and 'val' in ret:
+            return ret['val']
         else:
-            return x
+            return ret
 
 
     def binding(self, b):
+        """
+        Converts a binding in token form to a string representation.
+
+        """
         return ''.join([t['val'] for t in b['tokens']])
 
 
     def eval_assignment(self, call, inst, val):
+        """
+        Evaluate assignment as part of a call or assignment instruction,
+        creating a local or setting an existing local as needed.
+
+        Arguments:
+            call (dict): The call stack frame to execute within.
+            inst (dict): The instruction being executed.
+            val (dict): The value to assign.
+
+        """
+
         val_stripped = self.eval_expression_token(call, val)
         bind = self.binding(inst['code']['binding'])
 
@@ -342,26 +477,25 @@ class Interpreter(object):
             call (dict): The call stack frame to execute within.
             inst (dict): The instruction to evaluate.
 
-        Returns
-            True if the instruction pointer should be advanced or False if it
-            should not (calls for example).
-
         """
 
         def make_call(funcbind):
-            call_id = self.call(call['thread_id'], self.binding(funcbind),
-                                [self.eval_expression(call, p)
-                                 for p in inst['code']['params']],
-                                caller_id=inst['id'])
-            return call_id is None
+            """
+            Helper function.
+            """
+
+            self.call(call['thread_id'], self.binding(funcbind),
+                      [self.eval_expression(call, p)
+                       for p in inst['code']['params']],
+                      caller_id=inst['id'])
 
         if inst['code']['kind'] == 'call':
-            return make_call(inst['code']['binding'])
+            make_call(inst['code']['binding'])
         elif inst['code']['kind'] == 'assignment':
             is_call = 'target' in inst['code']
 
             if is_call:
-                return make_call(inst['code']['target'])
+                make_call(inst['code']['target'])
             else:
                 val = self.eval_expression(call,
                                            inst['code']['expression']['tokens'])
@@ -384,50 +518,3 @@ class Interpreter(object):
             self.eval_assignment(parent, caller_inst, retval)
         else:
             raise NotImplemented
-
-        return True
-
-        #params = inst['parameters']
-
-        #if inst['kind'] == 'var':
-        #    self.create_local(call['id'], params[1], params[0], params[2])
-        #elif inst['kind'] == 'set':
-        #    self.set_local(call['id'], params[0], params[1])
-        #elif inst['kind'] == 'call':
-        #    self.call(call['thread_id'], params[1], params[2:])
-        #elif inst['kind'] == 'sub':
-        #    self.call(call['thread_id'], params[0], params[1:])
-        #elif inst['kind'] == 'print':
-        #    print('[ glacia ] ' + self.eval_expression_token(call, params[0]))
-        #elif inst['kind'] == 'ret':
-            #self.eval_ret(call, inst, params[0])
-
-
-    def eval_ret(self, call, inst, val):
-        """
-        Return a value to the caller in glacia.
-
-        """
-
-        # Look up the call stack frame we're returning to.
-        parent = self.parent_call(call)
-
-        # Get the call instruction that invoked the now-returning function.
-        parent_inst = self.call_instruction(parent['id'])
-        params = self.parameters(parent_inst)
-
-        # Map the return value to the variable in the call instruction.
-        self.set_local(parent['id'], params[0],
-                       self.eval_expression_token(call, val))
-
-
-    def run(self):
-        thread_id = self.db.autoid("insert into threads (id) values ({$id});")
-
-        self.call(thread_id, 'main', [])
-
-        try:
-            while self.exec(thread_id):
-                pass
-        finally:
-            self.db.commit()
