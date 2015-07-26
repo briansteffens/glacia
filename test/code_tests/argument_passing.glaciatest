@@ -1,0 +1,11 @@
+3
+---
+int f(int x)
+{
+    print(x);
+}
+
+int main()
+{
+    f(3);
+}

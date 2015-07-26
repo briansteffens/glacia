@@ -13,46 +13,68 @@ from glacia.loader import load
 from glacia.interpreter import interpret
 
 
-if __name__ == '__main__':
-    with open('/vagrant/temp/first.glacia', 'rb') as f:
-        raw = f.read().decode('utf-8')
+def run(src, verbose=False, collect_stdout=False):
+    if verbose:
+        divider('Source code')
+        print(src)
 
-    divider('Source code')
-    print(raw)
+        divider('Partially lexed (still with whitespace)')
+    tokens = lex(src, preserve_whitespace=True)
+    if verbose:
+        print(print_tokens(tokens))
 
-    divider('Partially lexed (still with whitespace)')
-    tokens = lex(raw, preserve_whitespace=True)
-    print(print_tokens(tokens))
-
-    divider('Lexed')
-    tokens = lex(raw)
-    print(print_tokens(tokens, identifier_color='switch', line_width=60))
+        divider('Lexed')
+    tokens = lex(src)
+    if verbose:
+        print(print_tokens(tokens, identifier_color='switch', line_width=60))
 
     nodes = parse(tokens)
-    divider('Parsed')
-    print(print_nodes(nodes).strip())
+    if verbose:
+        divider('Parsed')
+        print(print_nodes(nodes).strip())
 
     program = analyze(nodes)
-    divider('Analyzed')
-    print(print_program(program))
+    if verbose:
+        divider('Analyzed')
+        print(print_program(program))
 
     reduce(program)
-    divider('Reduced')
-    print(print_program(program))
+    if verbose:
+        divider('Reduced')
+        print(print_program(program))
 
     parameterize(program)
-    divider('Parameterized')
-    print(print_program(program))
-    #import sys
-    #sys.exit()
+    if verbose:
+        divider('Parameterized')
+        print(print_program(program))
+
     generated = generate(program)
-    #divider('Generated DBIL')
-    #print(json.dumps(generated, indent=4, sort_keys=True))
+    #if verbose:
+    #    divider('Generated DBIL')
+    #    print(json.dumps(generated, indent=4, sort_keys=True))
 
     with close_after(Database()) as conn:
         load(conn, generated)
-        divider('Loaded DBIL')
-        print(print_db(conn))
+        if verbose:
+            divider('Loaded DBIL')
+            print(print_db(conn))
 
-        divider('Program output')
-        interpret(conn)
+            divider('Program output')
+
+        collected = []
+        def collect_func(obj):
+            collected.append(obj)
+
+        stdout_func = None
+        if collect_stdout:
+            stdout_func = collect_func
+
+        interpret(conn, stdout_func=stdout_func)
+
+        if collect_stdout:
+            return collected
+
+
+if __name__ == '__main__':
+    with open('/vagrant/temp/first.glacia', 'rb') as f:
+        run(f.read().decode('utf-8'), verbose=True)

@@ -1,14 +1,15 @@
 import json
 
 
-def interpret(db):
-    Interpreter(db).run()
+def interpret(db, stdout_func=None):
+    Interpreter(db, stdout_func=stdout_func).run()
 
 
 class Interpreter(object):
 
-    def __init__(self, db):
+    def __init__(self, db, stdout_func=None):
         self.db = db
+        self.stdout_func = stdout_func
 
 
     def run(self):
@@ -42,8 +43,14 @@ class Interpreter(object):
 
         # Process built-ins
         if func_name == 'print':
-            print(self.eval_expression_token(self.current_call(thread_id),
-                                             arguments[0]))
+            out = self.eval_expression_token(self.current_call(thread_id),
+                                             arguments[0])
+
+            if callable(self.stdout_func):
+                self.stdout_func(out)
+            else:
+                print(out)
+
             return None
 
         # Look up the function in the database
