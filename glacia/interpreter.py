@@ -460,11 +460,14 @@ class Interpreter(object):
         val_stripped = self.eval_expression_token(call, val)
         bind = self.binding(inst['code']['binding'])
 
+        # If there are modifiers (like int, string, static), create a local.
         if len(inst['code']['modifiers']) > 0:
             if len(inst['code']['modifiers']) > 1:
                 raise NotImplemented
 
             self.create_local(call['id'], bind, val['type'], val_stripped)
+
+        # If there are no modifiers, change the value of an existing local.
         else:
             self.set_local(call['id'], bind, val_stripped)
 
@@ -480,27 +483,27 @@ class Interpreter(object):
         """
 
         def make_call(funcbind):
-            """
-            Helper function.
-            """
-
             self.call(call['thread_id'], self.binding(funcbind),
                       [self.eval_expression(call, p)
                        for p in inst['code']['params']],
                       caller_id=inst['id'])
 
+        # Evaluate call instruction
         if inst['code']['kind'] == 'call':
             make_call(inst['code']['binding'])
+
+        # Evaluate assignment instruction
         elif inst['code']['kind'] == 'assignment':
-            is_call = 'target' in inst['code']
-
-            if is_call:
+            # Make a call if this assignment has a call target.
+            if 'target' in inst['code']:
                 make_call(inst['code']['target'])
-            else:
-                val = self.eval_expression(call,
-                                           inst['code']['expression']['tokens'])
-                self.eval_assignment(call, inst, val)
 
+            # Otherwise evaluate the expression directly.
+            else:
+                self.eval_assignment(call, inst, self.eval_expression(call,
+                                     inst['code']['expression']['tokens']))
+
+        # Evaluate return instruction
         elif inst['code']['kind'] == 'return':
             # Look up the call stack frame we're returning to.
             parent = self.parent_call(call)
@@ -516,5 +519,7 @@ class Interpreter(object):
             caller_inst = self.get_instruction(call['calling_instruction_id'])
 
             self.eval_assignment(parent, caller_inst, retval)
+
+        # Unrecognized instruction
         else:
             raise NotImplemented
