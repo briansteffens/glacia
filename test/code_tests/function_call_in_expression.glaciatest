@@ -1,0 +1,11 @@
+15
+---
+int a()
+{
+    return 3;
+}
+
+int main()
+{
+    print(5 * a());
+}

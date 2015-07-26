@@ -1,0 +1,12 @@
+21
+---
+int a(int x)
+{
+    print(x);
+}
+
+int main()
+{
+    int y = 3;
+    a(y * 7);
+}

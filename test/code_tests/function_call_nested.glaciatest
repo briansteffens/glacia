@@ -1,0 +1,16 @@
+Greetings.
+---
+int b()
+{
+    print("Greetings.");
+}
+
+int a()
+{
+    b();
+}
+
+int main()
+{
+    a();
+}

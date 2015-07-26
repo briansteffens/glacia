@@ -43,8 +43,8 @@ class Interpreter(object):
 
         # Process built-ins
         if func_name == 'print':
-            out = self.eval_expression_token(self.current_call(thread_id),
-                                             arguments[0])
+            out = str(self.eval_expression_token(self.current_call(thread_id),
+                                                 arguments[0]))
 
             if callable(self.stdout_func):
                 self.stdout_func(out)

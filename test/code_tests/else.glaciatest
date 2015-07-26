@@ -1,0 +1,25 @@
+pass
+pass 2
+---
+int main()
+{
+    int x = 7;
+
+    if (x == 3)
+    {
+        print("fail");
+    }
+    else
+    {
+        print("pass");
+    }
+
+    if (x == 7)
+    {
+        print("pass 2");
+    }
+    else
+    {
+        print("fail 2");
+    }
+}
