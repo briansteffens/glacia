@@ -38,11 +38,13 @@ create table calls
 ,   thread_id char(3)
 ,   depth bigint unsigned
 ,   instruction_id char(3)
+,   calling_instruction_id char(3) null
 
 ,   primary key (id)
 ,   unique (thread_id, depth)
 ,   foreign key (thread_id) references threads (id)
 ,   foreign key (instruction_id) references instructions (id)
+,   foreign key (calling_instruction_id) references instructions (id)
 );
 
 /* Local variables visible to a given call stack frame */
