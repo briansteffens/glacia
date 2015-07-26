@@ -18,7 +18,7 @@ class Interpreter(object):
 
         try:
             while self.exec(thread_id):
-                pass
+                self.db.commit()
         finally:
             self.db.commit()
 
@@ -118,6 +118,62 @@ class Interpreter(object):
                              "select parent_id from instructions " +
                              "where id = %s);",
                              (instruction_id,))
+
+
+    def conditional_depth(self, call):
+        """
+        Get current depth of the conditional stack.
+
+        """
+        ret = self.db.scalar("select max(depth) from conditionals where " +
+                             "call_id = %s;",
+                             (call['id'],))
+
+        return -1 if ret is None else ret
+
+
+    def push_conditional(self, call, satisfied):
+        """
+        Push a new frame onto the conditional stack (entering an if block).
+
+        Arguments:
+            call (dict): The call stack frame to execute within.
+            satisfied (bool): Whether any conditional in this frame has been
+                              true.
+
+        """
+        self.db.cmd("insert into conditionals (call_id, depth, satisfied) " +
+                    "values (%s, %s, %s);",
+                    (call['id'], self.conditional_depth(call) + 1, satisfied,))
+
+
+    def pop_conditional(self, call):
+        """
+        Pop a frame off the conditional stack (exiting a complex conditional).
+
+        """
+        self.db.cmd("delete from conditionals where call_id=%s and depth=%s;",
+                    (call['id'], self.conditional_depth(call),))
+
+
+    def read_conditional(self, call):
+        """
+        Read the satisfied value from the frame on top of the conditional stack.
+
+        """
+        return self.db.scalar("select satisfied from conditionals where " +
+                              "call_id = %s order by depth desc limit 1;",
+                              (call['id'],))
+
+
+    def set_conditional(self, call, satisfied):
+        """
+        Set the satisfied value on the frame on top of the conditional stack.
+
+        """
+        self.db.cmd("update conditionals set satisfied = %s where " +
+                    "call_id = %s and depth = %s;",
+                    (satisfied, call['id'], self.conditional_depth(call),))
 
 
     def current_call(self, thread_id):
@@ -241,7 +297,10 @@ class Interpreter(object):
 
         inst = self.call_instruction(call['id'])
 
-        self.eval(call, inst)
+        # If the instruction stepped into a block, don't advanced the
+        # instruction pointer.
+        if not self.eval(call, inst):
+            return True
 
         # Advance instruction pointer to the next line.
         next_inst = self.step_over(inst['id'])
@@ -249,6 +308,14 @@ class Interpreter(object):
         # If this is the end of a block (no more lines), resume the outer block.
         if next_inst is None:
             next_inst = self.step_out(inst['id'])
+
+            conditionals = ['if', 'else', 'elseif']
+
+            # Check if we are leaving a conditional and pop off the conditional
+            # stack if so.
+            if inst['code']['kind'] in conditionals and (next_inst is None or
+               next_inst['code']['kind'] not in conditionals):
+                self.pop_conditional(call)
 
         # If end of function (no more blocks), delete the call stack frame.
         if next_inst is None:
@@ -324,6 +391,10 @@ class Interpreter(object):
                 ret['val'] = left['val'] / right['val']
             elif oper['val'] == '^':
                 ret['val'] = left['val'] ** right['val']
+            elif oper['val'] == '==':
+                ret['val'] = left['val'] == right['val']
+            elif oper['val'] == '!=':
+                ret['val'] = left['val'] != right['val']
             else:
                 raise NotImplemented
 
@@ -355,7 +426,7 @@ class Interpreter(object):
 
             # Perform multiple passes over the evaluated tokens in order to
             # evaluate operators in the correct order (the order of operations).
-            for opers in [['^'],['*','/'],['+','-']]:
+            for opers in [['^'],['*','/'],['+','-'],['==','!=']]:
                 i = 0
                 while i < len(tokens):
                     token = tokens[i]
@@ -472,6 +543,24 @@ class Interpreter(object):
             self.set_local(call['id'], bind, val_stripped)
 
 
+    def is_true(self, token):
+        """
+        Check whether a value is considered boolean true in glacia.
+
+        Arguments:
+            token (dict): A value in dict format.
+
+        """
+
+        if token['type'] == 'bool' and token['val'] == True:
+            return True
+
+        if token['type'] == 'int' and int(token['val']) == 1:
+            return True
+
+        return False
+
+
     def eval(self, call, inst):
         """
         Evaluate an instruction.
@@ -487,6 +576,30 @@ class Interpreter(object):
                       [self.eval_expression(call, p)
                        for p in inst['code']['params']],
                       caller_id=inst['id'])
+
+        def process_conditional_block():
+            # If this is the start of a conditional, push a new frame onto the
+            # conditional stack.
+            if inst['code']['kind'] == 'if':
+                self.push_conditional(call, False)
+
+            # Evaluate the conditional expression.
+            r = self.eval_expression(call, inst['code']['expression']['tokens'])
+
+            # If the conditional does not pass, skip the block.
+            if not self.is_true(r):
+                return True
+
+            # Mark the conditional as satisfied.
+            self.set_conditional(call, True)
+
+            # Step into the if/else block.
+            self.set_call_instruction(call['id'],
+                                      self.step_into(inst['id'])['id'])
+
+            # Make sure exec() doesn't advanced the instruction pointer,
+            # which would overwrite the step into above.
+            return False
 
         # Evaluate call instruction
         if inst['code']['kind'] == 'call':
@@ -512,14 +625,25 @@ class Interpreter(object):
             parent_inst = self.call_instruction(parent['id'])
 
             # Map the return value to the variable in the call instruction.
-            retval = self.eval_expression(call,
-                                          inst['code']['expression']['tokens'])
+            v = self.eval_expression(call, inst['code']['expression']['tokens'])
 
             # Get the call instruction that invoked the now-returning function.
             caller_inst = self.get_instruction(call['calling_instruction_id'])
 
-            self.eval_assignment(parent, caller_inst, retval)
+            self.eval_assignment(parent, caller_inst, v)
+
+        # Execute if statement
+        elif inst['code']['kind'] == 'if':
+            return process_conditional_block()
+
+        # Execute else statement
+        elif inst['code']['kind'] == 'else':
+            if not self.read_conditional(call):
+                return process_conditional_block()
 
         # Unrecognized instruction
         else:
             raise NotImplemented
+
+        # Signal to exec() to advance the instruction pointer.
+        return True

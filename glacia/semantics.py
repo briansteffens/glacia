@@ -1,6 +1,6 @@
 
 from glacia import (Program, Function, Expression, Binding, Assignment, If,
-                    Return, Parameter)
+                    Return, Parameter, Else)
 
 
 def analyze(root):
@@ -86,6 +86,19 @@ def analyze_block_contents(node):
             instruction.body = analyze_block_contents(n) # Recur
             ret.append(instruction)
 
+        elif hasattr(n.tokens[0], 'val') and n.tokens[0].val == 'else':
+            expr = None
+
+            # If this is an "else if", set the grab the conditional expression.
+            if len(n.tokens) >= 2 and \
+               hasattr(n.tokens[1], 'val') and n.tokens[1].val == 'if' and \
+               n.tokens[2].kind == 'parenthesis':
+                expr = n.tokens[2]
+
+            instruction = Else(expression=expr)
+            instruction.body = analyze_block_contents(n) # Recur
+            ret.append(instruction)
+
         elif hasattr(n.tokens[0], 'val') and n.tokens[0].val == 'return':
             ret.append(Return(Expression(n.tokens[1:])))
 
@@ -150,7 +163,7 @@ def identify_keywords(tokens):
         token = tokens[i]
 
         if token.kind == 'identifier' and token.val in ['if', 'return', 'int',
-                                                        'static']:
+                                                        'static', 'else']:
             token.kind = 'keyword'
 
 

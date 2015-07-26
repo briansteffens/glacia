@@ -245,6 +245,26 @@ class If(Block):
                super().block_str(indent=indent)
 
 
+class Else(Block):
+
+    def __init__(self, expression=None):
+        super().__init__('else')
+
+        if expression is None:
+            expression = Expression([Token('numeric', '1')])
+
+        self.expression = expression
+
+    def block_str(self, indent=0):
+        tabs = Block.indent(indent - 1)
+
+        expr = ''
+        if self.expression is not None:
+            expr = ' if (' + str(self.expression) + ')'
+
+        return tabs+"else" + expr + "\n" + super().block_str(indent=indent)
+
+
 class Return(Instruction):
 
     def __init__(self, expression):

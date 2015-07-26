@@ -47,6 +47,17 @@ create table calls
 ,   foreign key (calling_instruction_id) references instructions (id)
 );
 
+/* The conditional stack. Each row is a conditional (if[/else if][/else]). */
+create table conditionals
+(
+    call_id char(3)
+,   depth int
+,   satisfied bool
+
+,   primary key (call_id, depth)
+,   foreign key (call_id) references calls (id) on delete cascade
+);
+
 /* Local variables visible to a given call stack frame */
 create table locals
 (
