@@ -1,6 +1,6 @@
 
 from glacia import (Program, Function, Expression, Binding, Assignment, If,
-                    Return, Parameter, Else)
+                    Return, Parameter, Else, While)
 
 
 def analyze(root):
@@ -99,6 +99,14 @@ def analyze_block_contents(node):
             instruction.body = analyze_block_contents(n) # Recur
             ret.append(instruction)
 
+        elif hasattr(n.tokens[0], 'val') and n.tokens[0].val == 'while':
+            if n.tokens[1].kind != 'parenthesis':
+                raise Exception('Expected while comparison expression.')
+
+            instruction = While(Expression(n.tokens[1].tokens))
+            instruction.body = analyze_block_contents(n) # Recur
+            ret.append(instruction)
+
         elif hasattr(n.tokens[0], 'val') and n.tokens[0].val == 'return':
             ret.append(Return(Expression(n.tokens[1:])))
 
@@ -163,7 +171,8 @@ def identify_keywords(tokens):
         token = tokens[i]
 
         if token.kind == 'identifier' and token.val in ['if', 'return', 'int',
-                                                        'static', 'else']:
+                                                        'static', 'else',
+                                                        'while']:
             token.kind = 'keyword'
 
 

@@ -121,10 +121,15 @@ class Interpreter(object):
         Look up the next instruction outside the current block.
 
         """
-        return self.db.first("select * from instructions where previous_id = ("+
-                             "select parent_id from instructions " +
-                             "where id = %s);",
-                             (instruction_id,))
+        ret = self.db.first("select * from instructions where previous_id = ("+
+                            "select parent_id from instructions " +
+                            "where id = %s);",
+                            (instruction_id,))
+
+        if ret is not None:
+            ret['code'] = json.loads(ret['code'])
+
+        return ret
 
 
     def conditional_depth(self, call):
@@ -314,15 +319,24 @@ class Interpreter(object):
 
         # If this is the end of a block (no more lines), resume the outer block.
         if next_inst is None:
-            next_inst = self.step_out(inst['id'])
+            # Look up the parent instruction if there is one.
+            parent_inst = None if inst['parent_id'] is None \
+                               else self.get_instruction(inst['parent_id'])
 
-            conditionals = ['if', 'else', 'elseif']
+            next_inst = self.step_out(inst['id'])
 
             # Check if we are leaving a conditional and pop off the conditional
             # stack if so.
-            if inst['code']['kind'] in conditionals and (next_inst is None or
-               next_inst['code']['kind'] not in conditionals):
+            if (parent_inst is not None and
+                parent_inst['code']['kind'] in ['if', 'else']) and \
+               (next_inst is None or
+                next_inst['code']['kind'] != 'else'):
                 self.pop_conditional(call)
+
+            # Check if we are leaving a while loop and repeat if so.
+            if parent_inst is not None and \
+               parent_inst['code']['kind'] == 'while':
+                next_inst = parent_inst
 
         # If end of function (no more blocks), delete the call stack frame.
         if next_inst is None:
@@ -402,6 +416,14 @@ class Interpreter(object):
                 ret['val'] = left['val'] == right['val']
             elif oper['val'] == '!=':
                 ret['val'] = left['val'] != right['val']
+            elif oper['val'] == '<':
+                ret['val'] = left['val'] < right['val']
+            elif oper['val'] == '<=':
+                ret['val'] = left['val'] <= right['val']
+            elif oper['val'] == '>':
+                ret['val'] = left['val'] > right['val']
+            elif oper['val'] == '>=':
+                ret['val'] = left['val'] >= right['val']
             else:
                 raise NotImplemented
 
@@ -433,7 +455,8 @@ class Interpreter(object):
 
             # Perform multiple passes over the evaluated tokens in order to
             # evaluate operators in the correct order (the order of operations).
-            for opers in [['^'],['*','/'],['+','-'],['==','!=']]:
+            for opers in [['^'],['*','/'],['+','-'],
+                          ['==','!=','<','<=','>','>=']]:
                 i = 0
                 while i < len(tokens):
                     token = tokens[i]
@@ -647,6 +670,10 @@ class Interpreter(object):
         elif inst['code']['kind'] == 'else':
             if not self.read_conditional(call):
                 return process_conditional_block()
+
+        # Execute while statement
+        elif inst['code']['kind'] == 'while':
+            return process_conditional_block()
 
         # Unrecognized instruction
         else:

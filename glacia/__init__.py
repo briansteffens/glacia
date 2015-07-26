@@ -265,6 +265,19 @@ class Else(Block):
         return tabs+"else" + expr + "\n" + super().block_str(indent=indent)
 
 
+class While(Block):
+
+    def __init__(self, expression):
+        super().__init__('while')
+
+        self.expression = expression
+
+    def block_str(self, indent=0):
+        tabs = Block.indent(indent - 1)
+        return tabs + 'while (' + str(self.expression) + ')\n' + \
+               super().block_str(indent=indent)
+
+
 class Return(Instruction):
 
     def __init__(self, expression):
