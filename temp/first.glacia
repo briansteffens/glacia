@@ -1,6 +1,7 @@
 int main()
 {
-    int y = 3;
-    int x = (y * 4) / 2;
-    print(x * 5);
+    print("Greetings.");
+    int x = 3;
+    int y = 7;
+    print(x ^ x - (x - 1) * y);
 }

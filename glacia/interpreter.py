@@ -185,19 +185,25 @@ class Interpreter(object):
 
         #print('EVAL_OPERATOR: '+str(left)+' | '+str(oper)+' | '+str(right))
 
+        ret = {}
+
         if left['type'] == 'int' and right['type'] == 'int':
-            if oper['val'] == '*':
-                return {
-                    'type': 'int',
-                    'val': left['val'] * right['val'],
-                }
+            ret['type'] = 'int'
+
+            if oper['val'] == '+':
+                ret['val'] = left['val'] + right['val']
+            elif oper['val'] == '-':
+                ret['val'] = left['val'] - right['val']
+            elif oper['val'] == '*':
+                ret['val'] = left['val'] * right['val']
             elif oper['val'] == '/':
-                return {
-                    'type': 'int',
-                    'val': left['val'] / right['val'],
-                }
+                ret['val'] = left['val'] / right['val']
+            elif oper['val'] == '^':
+                ret['val'] = left['val'] ** right['val']
             else:
                 raise NotImplemented
+
+            return ret
 
         raise NotImplemented
 
