@@ -104,10 +104,25 @@ class Interpreter(object):
 
         # Create all arguments as locals in the new call scope
         for i in range(len(arguments)):
+            call = {'id': call_id}
+            expr = self.eval_expression(call, arguments[i])
+
+            # Some types automatically pass by reference. Detect that here.
+            ref = None
+            val = None
+            try:
+                mem = self.mem_read(expr['address_id'])
+                if mem['type'] in ['list']:
+                    ref = mem['id']
+                else:
+                    raise KeyError
+            except KeyError:
+                pass
+            finally:
+                val = self.eval_expression_token(call, expr)
+
             self.create_local(call_id, function['arguments'][i]['name'],
-                              function['arguments'][i]['type'],
-                              self.eval_expression_token({'id': call_id},
-                                                   arguments[i]))
+                              function['arguments'][i]['type'], val, ref=ref)
 
 
     def set_call_instruction(self, call_id, instruction_id):
@@ -312,7 +327,7 @@ class Interpreter(object):
         self.db.cmd("delete from addresses where id = %s;", (addr,))
 
 
-    def create_local(self, call_id, label, type_, val):
+    def create_local(self, call_id, label, type_, val, ref=None):
         """
         Create and set a local variable.
 
@@ -321,11 +336,18 @@ class Interpreter(object):
             label (str): The name of the variable.
             type_ (str): The type of the variable.
             val (any): The initial value to assign to the variable.
+            ref (str): If present, refers to an existing memory address ID to
+                       make the local refer to instead of allocating new
+                       memory. val is ignored if ref is present.
 
         """
-        addr = self.db.autoid("insert into addresses (id, type, val) " +
-                              "values ({$id}, %s, %s);",
-                              (type_, val,))
+        # No existing reference to point to. Allocate memory.
+        if ref is None:
+            addr = self.mem_write(self.mem_alloc(), {'type': type_,'val': val})
+
+        # Existing reference. Make a pointer.
+        else:
+            addr = ref
 
         self.db.autoid("insert into locals (id, call_id, label, address_id) " +
                        "values ({$id}, %s, %s, %s);",
@@ -537,6 +559,7 @@ class Interpreter(object):
 
         # Look up te list whose item is being retrieved.
         local = self.get_local(call['id'], target)
+        mem = self.mem_read(local['address_id'])
 
         # Get the raw index value if this is a token.
         try:
@@ -544,9 +567,9 @@ class Interpreter(object):
         except TypeError:
             pass
 
-        ret = self.db.first("select * from items where local_id = %s and " +
+        ret = self.db.first("select * from items where list_id = %s and " +
                             "ordinal = %s limit 1;",
-                            (local['id'], index,))
+                            (mem['id'], index,))
 
         if ret is None:
             raise Exception('Failed to get index '+str(index)+' '+
@@ -571,6 +594,7 @@ class Interpreter(object):
 
         # Look up the list whose item is being assigned.
         local = self.get_local(call['id'], target)
+        mem = self.mem_read(local['address_id'])
 
         # Get the raw index value if this is a token.
         try:
@@ -581,14 +605,14 @@ class Interpreter(object):
         # An "upsert" would still take 2 queries: a select to see if it exists
         # already and then an insert or update depending on the select. Might as
         # well just delete and insert.
-        self.db.cmd("delete from items where local_id = %s and ordinal = %s;",
+        self.db.cmd("delete from items where list_id = %s and ordinal = %s;",
                     (local['id'], index))
 
         addr = self.mem_write(self.mem_alloc(), val)
 
-        self.db.cmd("insert into items (local_id, ordinal, address_id) " +
+        self.db.cmd("insert into items (list_id, ordinal, address_id) " +
                     "values (%s, %s, %s);",
-                    (local['id'], index, addr,))
+                    (mem['id'], index, addr,))
 
 
     def get_list(self, call, target):
@@ -652,7 +676,7 @@ class Interpreter(object):
 
         # If the list is being shrunk, delete any newly out-of-bounds items.
         if size_diff < 0:
-            self.db.cmd("delete from items where local_id=%s and ordinal>=%s;",
+            self.db.cmd("delete from items where list_id=%s and ordinal>=%s;",
                         (lst['id'], new_size))
 
 

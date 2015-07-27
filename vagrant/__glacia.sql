@@ -85,11 +85,11 @@ create table locals
 /* List items */
 create table items
 (
-    local_id char(3)
+    list_id char(3)
 ,   ordinal int
 ,   address_id char(3)
 
-,   primary key (local_id, ordinal)
-,   foreign key (local_id) references locals (id) on delete cascade
+,   primary key (list_id, ordinal)
+,   foreign key (list_id) references addresses (id) on delete cascade
 ,   foreign key (address_id) references addresses (id) on delete cascade
 );

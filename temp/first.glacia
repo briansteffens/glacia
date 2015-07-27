@@ -1,17 +1,22 @@
+int a(list lst)
+{
+    print(len(lst));
+
+    print(lst[0]);
+    print(lst[1]);
+
+    push(lst, 9);
+}
+
 int main()
 {
     list c = 0;
 
-    print(len(c));
-
     push(c, 5);
-
-    print(len(c));
-    print(c[0]);
-
     push(c, 7);
-    print(len(c));
-    print(c[1]);
 
-    print(pop(c));
+    a(c);
+
+    print(len(c));
+    print(c[2]);
 }

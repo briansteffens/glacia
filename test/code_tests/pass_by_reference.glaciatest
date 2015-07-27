@@ -1,0 +1,24 @@
+1
+3
+2
+7
+---
+int f(list lst)
+{
+    print(len(lst));
+    print(lst[0]);
+
+    push(lst, 7);
+}
+
+int main()
+{
+    list c = 0;
+
+    push(c, 3);
+
+    f(c);
+
+    print(len(c));
+    print(c[1]);
+}
