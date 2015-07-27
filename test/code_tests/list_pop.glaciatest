@@ -1,0 +1,13 @@
+7
+5
+---
+int main()
+{
+    list c = 0;
+
+    push(c, 5);
+    push(c, 7);
+
+    print(pop(c));
+    print(pop(c));
+}

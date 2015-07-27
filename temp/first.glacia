@@ -12,4 +12,6 @@ int main()
     push(c, 7);
     print(len(c));
     print(c[1]);
+
+    print(pop(c));
 }

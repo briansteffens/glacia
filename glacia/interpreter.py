@@ -64,6 +64,8 @@ class Interpreter(object):
         elif func_name == 'push':
             self.list_push(current_call, eval_arg(0), eval_arg(1))
             return
+        elif func_name == 'pop':
+            return self.list_pop(current_call, eval_arg(0))
 
         # Look up the function in the database
         function = self.db.first("select * from functions where label = %s;",
@@ -281,6 +283,16 @@ class Interpreter(object):
             The local in dict format.
 
         """
+
+        # Unpack the label if it's not a primitive.
+        try:
+            if 'label' in label:
+                label = label['label']
+            elif 'val' in label:
+                label = label['val']
+        except TypeError:
+            pass
+
         return self.db.first("select * from locals where call_id = %s and " +
                              "label = %s;",
                              (call_id, label,))
@@ -456,11 +468,17 @@ class Interpreter(object):
         """
 
         # Look up te list whose item is being retrieved.
-        local = self.get_local(call['id'], target['val'])
+        local = self.get_local(call['id'], target)
+
+        # Get the raw index value if this is a token.
+        try:
+            index = index['val']
+        except TypeError:
+            pass
 
         ret = self.db.first("select * from items where local_id = %s and " +
                             "ordinal = %s limit 1;",
-                            (local['id'], index['val'],))
+                            (local['id'], index,))
 
         if ret is None:
             raise Exception('Failed to get index '+str(index)+' '+
@@ -482,11 +500,7 @@ class Interpreter(object):
         """
 
         # Look up the list whose item is being assigned.
-        if 'label' in target:
-            lookup = target['label']
-        else:
-            lookup = target['val']
-        local = self.get_local(call['id'], lookup)
+        local = self.get_local(call['id'], target)
 
         # Get the raw index value if this is a token.
         try:
@@ -584,6 +598,31 @@ class Interpreter(object):
         self.list_resize(local, ordinal + 1)
 
         self.set_item(call, target, ordinal, val)
+
+
+    def list_pop(self, call, target):
+        """
+        Pop an item off the top of the list.
+
+        Arguments:
+            call (dict): The call stack frame to search in.
+            target (dict): The identifier of the list to remove from.
+
+        """
+        local = self.get_list(call, target)
+
+        if local['length'] < 1:
+            raise Exception('The list is already empty.')
+
+        # Get the index of the last item in the list.
+        ordinal = local['length'] - 1
+
+        ret = self.get_item(call, target, ordinal)
+
+        # Delete the last item from the list.
+        self.list_resize(local, ordinal)
+
+        return ret
 
 
     def eval_expression(self, call, expr, assignment_target=False):
