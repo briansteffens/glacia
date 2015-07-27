@@ -15,5 +15,5 @@ int main()
 
     push(c, 4);
 
-    print(len(c));
+    print(c.len());
 }

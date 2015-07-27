@@ -9,5 +9,5 @@ int main()
     push(c, 7);
 
     print(pop(c));
-    print(pop(c));
+    print(c.pop());
 }

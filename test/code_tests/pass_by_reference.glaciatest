@@ -5,7 +5,7 @@
 ---
 int f(list lst)
 {
-    print(len(lst));
+    print(lst.len());
     print(lst[0]);
 
     push(lst, 7);
@@ -15,10 +15,10 @@ int main()
 {
     list c;
 
-    push(c, 3);
+    c.push(3);
 
     f(c);
 
-    print(len(c));
+    print(c.len());
     print(c[1]);
 }

@@ -1,23 +1,8 @@
-int a(list lst)
-{
-    print(len(lst));
-
-    print(lst[0]);
-    print(lst[1]);
-
-    push(lst, 9);
-}
-
 int main()
 {
     list c;
-    list d = 0;
-
-    push(c, 5);
-    push(c, 7);
-
-    a(c);
-
-    print(len(c));
-    print(c[2]);
+    int x = c.len();
+    c.push(3);
+    print(c.len());
+    print(c.pop());
 }

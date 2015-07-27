@@ -15,7 +15,7 @@ class Interpreter(object):
     def run(self):
         thread_id = self.db.autoid("insert into threads (id) values ({$id});")
 
-        self.call(thread_id, 'main', [])
+        self.call(thread_id, {'tokens': [{'val': 'main'}]}, [])
 
         try:
             while self.exec(thread_id):
@@ -25,13 +25,13 @@ class Interpreter(object):
             self.db.commit()
 
 
-    def call(self, thread_id, func_name, arguments, caller_id=None):
+    def call(self, thread_id, binding, arguments, caller_id=None):
         """
         Perform a function call in glacia.
 
         Arguments:
             thread_id (int) - The thread to make the call within.
-            func_name (str) - The name of the function to call.
+            binding (str) - The binding of the function to call.
             arguments (list) - The positional arguments to pass.
             caller_id (int) - The instruction ID that made the call (or None in
                               the case of the initial main() call).
@@ -46,6 +46,23 @@ class Interpreter(object):
 
         def eval_arg(index):
             return self.eval_expression(current_call, arguments[index])
+
+        func_name = binding['tokens'][-1]['val']
+
+        evaled = [eval_arg(i) for i in range(len(arguments))]
+        if len(binding['tokens']) == 3:
+            if binding['tokens'][0]['cls'] == 'identifier' and \
+               binding['tokens'][1]['cls'] == 'operator' and \
+               binding['tokens'][1]['val'] == '.':
+                evaled.insert(0, self.eval_expression(current_call, {
+                    'cls': 'argument',
+                    'expression': {
+                        'tokens': [{
+                            'cls': 'binding',
+                            'tokens': [binding['tokens'][0]],
+                        }],
+                    },
+                }))
 
         # Process built-ins
         if func_name == 'print':
@@ -62,16 +79,19 @@ class Interpreter(object):
                 print(out)
 
             return None
+
         elif func_name == 'len':
             return {
                 'type': 'int',
-                'val': self.get_list_length(current_call, eval_arg(0))
+                'val': self.get_list_length(current_call, evaled[0])
             }
+
         elif func_name == 'push':
-            self.list_push(current_call, eval_arg(0), eval_arg(1))
+            self.list_push(current_call, evaled[0], evaled[1])
             return
+
         elif func_name == 'pop':
-            return self.list_pop(current_call, eval_arg(0))
+            return self.list_pop(current_call, evaled[0])
 
         # Look up the function in the database
         function = self.db.first("select * from functions where label = %s;",
@@ -299,6 +319,14 @@ class Interpreter(object):
             val (dict): The value to write.
 
         """
+
+        # If val is a local/item/etc, look up the underlying memory.
+        try:
+            if 'address_id' in val:
+                val = self.mem_read(val['address_id'])
+        except KeyError:
+            pass
+
         self.db.cmd("update addresses set val = %s, type = %s where id = %s;",
                     (val['val'], val['type'], addr,))
 
@@ -958,7 +986,7 @@ class Interpreter(object):
         """
 
         def make_call(funcbind):
-            return self.call(call['thread_id'], self.binding(funcbind),
+            return self.call(call['thread_id'], funcbind,
                              [self.eval_expression(call, p)
                               for p in inst['code']['params']],
                              caller_id=inst['id'])

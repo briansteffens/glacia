@@ -6,7 +6,7 @@ int main()
     list c;
 
     push(c, 5);
-    push(c, 7);
+    c.push(7);
 
     print(c[0]);
     print(c[1]);
