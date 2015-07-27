@@ -434,13 +434,66 @@ class Interpreter(object):
         raise NotImplemented
 
 
-    def eval_expression(self, call, expr):
+    def get_item(self, call, target, index):
+        """
+        Get the value of a list item.
+
+        Arguments:
+            call (dict): The call stack frame to search within.
+            target (dict): The identifier of the list local.
+            index (dict): The list item ordinal.
+
+        """
+
+        # Look up te list whose item is being retrieved.
+        local = self.get_local(call['id'], target['val'])
+
+        ret = self.db.first("select * from items where local_id = %s and " +
+                            "ordinal = %s limit 1;",
+                            (local['id'], index['val'],))
+
+        if ret is None:
+            raise Exception('Failed to get index '+str(index)+' '+
+                            'from list '+str(target)+'.')
+
+        return ret
+
+
+    def set_item(self, call, target, index, val):
+        """
+        Set the value of a list item.
+
+        Arguments:
+            call (dict): The call stack frame to search within.
+            target (dict): The identifier of the list local.
+            index (dict): The list item ordinal.
+            val (dict): The value to assign to the item.
+
+        """
+
+        # Look up the list whose item is being assigned.
+        local = self.get_local(call['id'], target['val'])
+
+        # An "upsert" would still take 2 queries: a select to see if it exists
+        # already and then an insert or update depending on the select. Might as
+        # well just delete and insert.
+        self.db.cmd("delete from items where local_id = %s and ordinal = %s;",
+                    (local['id'], index['val']))
+
+        self.db.cmd("insert into items (local_id, ordinal, type, val) " +
+                    "values (%s, %s, %s, %s);",
+                    (local['id'], index['val'], val['type'], val['val']))
+
+
+    def eval_expression(self, call, expr, assignment_target=False):
         """
         Evaluate an expression.
 
         Arguments:
             call (dict): The call stack frame to evaluate within.
             expr (dict,list): The token or list of tokens to evaluate.
+            assignment_target (bool): Whether the expression is the target of an
+                                      assignment instruction.
 
         Returns:
             A dict-format token which is the result of the expression being
@@ -506,8 +559,44 @@ class Interpreter(object):
 
         # If the expression is a binding, evaluate it and return its value.
         if expr['cls'] == 'binding':
+            # Copy the token array
+            parts = expr['tokens'][:]
+            last = None
+
+            while len(parts) > 0:
+                if parts[0]['cls'] == 'identifier':
+                    if last is not None:
+                        raise Exception('Two identifiers in a row is invalid.')
+
+                    last = parts[0]
+
+                if parts[0]['cls'] == 'square':
+                    if last is None:
+                        raise Exception('Indexer not preceded by an identifer.')
+
+                    # Recur
+                    index = self.eval_expression(call, parts[0]['tokens'])
+
+                    # Evaluate the indexer operation (as long as this is a get).
+                    if not assignment_target:
+                        last = self.get_item(call, last, index)
+
+                    # If this is a set, pack this up as an unevaluated indexer.
+                    else:
+                        return {
+                            'cls': 'unevaluated_indexer',
+                            'identifier': last,
+                            'index': index,
+                        }
+
+                del parts[0]
+
             binding = ''.join([t['val'] for t in expr['tokens']])
-            return self.get_local(call['id'], binding)
+
+            if 'cls' in last and last['cls'] == 'identifier':
+                return self.get_local(call['id'], last['val'])
+
+            return last
 
         # If the expression is parenthesis, recur.
         if expr['cls'] == 'parenthesis':
@@ -560,6 +649,8 @@ class Interpreter(object):
 
         val_stripped = self.eval_expression_token(call, val)
         bind = self.binding(inst['code']['binding'])
+        binding = self.eval_expression(call, inst['code']['binding'],
+                                       assignment_target=True)
 
         # If there are modifiers (like int, string, static), create a local.
         if len(inst['code']['modifiers']) > 0:
@@ -570,7 +661,13 @@ class Interpreter(object):
 
         # If there are no modifiers, change the value of an existing local.
         else:
-            self.set_local(call['id'], bind, val_stripped)
+            # If this is setting a list item, use special array handling.
+            if 'cls' in binding and binding['cls'] == 'unevaluated_indexer':
+                self.set_item(call,binding['identifier'],binding['index'],val)
+
+            # Otherwise treat it as a standard local.
+            else:
+                self.set_local(call['id'], bind, val_stripped)
 
 
     def is_true(self, token):

@@ -71,3 +71,15 @@ create table locals
 ,   unique (call_id, label)
 ,   foreign key (call_id) references calls (id) on delete cascade
 );
+
+/* List items */
+create table items
+(
+    local_id char(3)
+,   ordinal int
+,   type varchar(16)
+,   val varchar(255)
+
+,   primary key (local_id, ordinal)
+,   foreign key (local_id) references locals (id) on delete cascade
+);

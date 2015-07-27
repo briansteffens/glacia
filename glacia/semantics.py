@@ -172,7 +172,7 @@ def identify_keywords(tokens):
 
         if token.kind == 'identifier' and token.val in ['if', 'return', 'int',
                                                         'static', 'else',
-                                                        'while']:
+                                                        'while', 'list']:
             token.kind = 'keyword'
 
 

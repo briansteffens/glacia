@@ -1,0 +1,13 @@
+3
+7
+---
+int main()
+{
+    list ar = 0;
+
+    ar[0] = 3;
+    ar[1] = 7;
+
+    print(ar[0]);
+    print(ar[1]);
+}
