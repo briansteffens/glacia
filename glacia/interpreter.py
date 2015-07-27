@@ -19,6 +19,7 @@ class Interpreter(object):
 
         try:
             while self.exec(thread_id):
+                self.gc()
                 self.db.commit()
         finally:
             self.db.commit()
@@ -1015,3 +1016,17 @@ class Interpreter(object):
 
         # Signal to exec() to advance the instruction pointer.
         return True
+
+
+    def gc(self):
+        """
+        Run the garbage collector against all virtual database memory.
+
+        """
+
+        # Delete any memory addresses which are no longer referenced.
+        self.db.cmd("delete from addresses where 0 = " +
+                    "(select count(1) from locals " +
+                     "where address_id = addresses.id) + " +
+                    "(select count(1) from items " +
+                     "where address_id = addresses.id);")
