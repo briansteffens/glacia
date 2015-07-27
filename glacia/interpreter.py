@@ -36,15 +36,19 @@ class Interpreter(object):
                               the case of the initial main() call).
 
         Returns:
-            The call_id referencing the newly created frame on the call stack
-            or None if no frame was created (in the case of built-ins).
+            For built-ins, returns the result of the call. Otherwise, returns
+            None.
 
         """
 
+        current_call = self.current_call(thread_id)
+
+        def eval_arg(index):
+            return self.eval_expression(current_call, arguments[index])
+
         # Process built-ins
         if func_name == 'print':
-            out = str(self.eval_expression_token(self.current_call(thread_id),
-                                                 arguments[0]))
+            out = str(eval_arg(0)['val'])
 
             if callable(self.stdout_func):
                 self.stdout_func(out)
@@ -52,6 +56,14 @@ class Interpreter(object):
                 print(out)
 
             return None
+        elif func_name == 'len':
+            return {
+                'type': 'int',
+                'val': self.get_list_length(current_call, eval_arg(0))
+            }
+        elif func_name == 'push':
+            self.list_push(current_call, eval_arg(0), eval_arg(1))
+            return
 
         # Look up the function in the database
         function = self.db.first("select * from functions where label = %s;",
@@ -88,8 +100,6 @@ class Interpreter(object):
                               function['arguments'][i]['type'],
                               self.eval_expression_token({'id': call_id},
                                                    arguments[i]))
-
-        return call_id
 
 
     def set_call_instruction(self, call_id, instruction_id):
@@ -466,23 +476,114 @@ class Interpreter(object):
         Arguments:
             call (dict): The call stack frame to search within.
             target (dict): The identifier of the list local.
-            index (dict): The list item ordinal.
+            index (int): The list item ordinal.
             val (dict): The value to assign to the item.
 
         """
 
         # Look up the list whose item is being assigned.
-        local = self.get_local(call['id'], target['val'])
+        if 'label' in target:
+            lookup = target['label']
+        else:
+            lookup = target['val']
+        local = self.get_local(call['id'], lookup)
+
+        # Get the raw index value if this is a token.
+        try:
+            index = index['val']
+        except TypeError:
+            pass
 
         # An "upsert" would still take 2 queries: a select to see if it exists
         # already and then an insert or update depending on the select. Might as
         # well just delete and insert.
         self.db.cmd("delete from items where local_id = %s and ordinal = %s;",
-                    (local['id'], index['val']))
+                    (local['id'], index))
 
         self.db.cmd("insert into items (local_id, ordinal, type, val) " +
                     "values (%s, %s, %s, %s);",
-                    (local['id'], index['val'], val['type'], val['val']))
+                    (local['id'], index, val['type'], val['val']))
+
+
+    def get_list(self, call, target):
+        """
+        Get a list local from the database.
+
+        Arguments:
+            call (dict): The call stack frame to search in.
+            target (dict): The identifier of the list to search for.
+
+        """
+
+        # Lookup the list.
+        local = self.get_local(call['id'], target['label'])
+
+        # Make sure the local found is a list.
+        if local['type'] != 'list':
+            raise Exception('Expected a list but found a '+local['type'+'.'])
+
+        if local['length'] is None:
+            local['length'] = 0
+
+        return local
+
+
+    def get_list_length(self, call, target):
+        """
+        Get the number of items in a list.
+
+        Arguments:
+            call (dict): The call stack frame to search in.
+            target (dict): The identifier of the list to count items in.
+
+        """
+        local = self.get_list(call, target)
+
+        return 0 if local['length'] is None else local['length']
+
+
+    def list_resize(self, lst, new_size):
+        """
+        Resize a list.
+
+        Arguments:
+            lst (dict): The list local to resize.
+            new_size (int): The new list size in elements.
+
+        """
+        size_diff = new_size - lst['length']
+
+        # If there is no size difference, do nothing.
+        if size_diff == 0:
+            return
+
+        # Update the bounds of the local in the database.
+        lst['length'] = new_size
+        self.db.cmd("update locals set length = %s where id = %s;",
+                    (lst['length'], lst['id'],))
+
+        # If the list is being shrunk, delete any newly out-of-bounds items.
+        if size_diff < 0:
+            self.db.cmd("delete from items where local_id=%s and ordinal>=%s;",
+                        (lst['id'], new_size))
+
+
+    def list_push(self, call, target, val):
+        """
+        Append an item to the end of a list.
+
+        Arguments:
+            call (dict): The call stack frame to search in.
+            target (dict): The identifier of the list to append to.
+            val (dict): The value to append to the list.
+
+        """
+        local = self.get_list(call, target)
+        ordinal = local['length']
+
+        self.list_resize(local, ordinal + 1)
+
+        self.set_item(call, target, ordinal, val)
 
 
     def eval_expression(self, call, expr, assignment_target=False):
@@ -657,7 +758,11 @@ class Interpreter(object):
             if len(inst['code']['modifiers']) > 1:
                 raise NotImplemented
 
-            self.create_local(call['id'], bind, val['type'], val_stripped)
+            type_ = inst['code']['modifiers'][0]
+            if type_ == 'var':
+                type_ = val['type']
+
+            self.create_local(call['id'], bind, type_, val_stripped)
 
         # If there are no modifiers, change the value of an existing local.
         else:
@@ -699,10 +804,10 @@ class Interpreter(object):
         """
 
         def make_call(funcbind):
-            self.call(call['thread_id'], self.binding(funcbind),
-                      [self.eval_expression(call, p)
-                       for p in inst['code']['params']],
-                      caller_id=inst['id'])
+            return self.call(call['thread_id'], self.binding(funcbind),
+                             [self.eval_expression(call, p)
+                              for p in inst['code']['params']],
+                             caller_id=inst['id'])
 
         def process_conditional_block():
             # If this is the start of a conditional, push a new frame onto the
@@ -736,12 +841,15 @@ class Interpreter(object):
         elif inst['code']['kind'] == 'assignment':
             # Make a call if this assignment has a call target.
             if 'target' in inst['code']:
-                make_call(inst['code']['target'])
+                assign = make_call(inst['code']['target'])
 
             # Otherwise evaluate the expression directly.
             else:
-                self.eval_assignment(call, inst, self.eval_expression(call,
-                                     inst['code']['expression']['tokens']))
+                assign = self.eval_expression(call,
+                                           inst['code']['expression']['tokens'])
+
+            if assign is not None:
+                self.eval_assignment(call, inst, assign)
 
         # Evaluate return instruction
         elif inst['code']['kind'] == 'return':

@@ -66,6 +66,7 @@ create table locals
 ,   label varchar(255)
 ,   type varchar(16)
 ,   val varchar(255)
+,   length int null
 
 ,   primary key (id)
 ,   unique (call_id, label)

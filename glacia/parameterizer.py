@@ -29,9 +29,10 @@ def parameterize_instruction(instruction):
         param = instruction.params.pop(0)
 
         # Commas separate parameters. Consume the buffer and reset.
-        if param.kind == 'operator' and param.val == ',':
+        if param.kind in ['operator', 'char'] and param.val == ',':
             ret.append(buf)
             buf = []
+            continue
 
         buf.append(param)
 

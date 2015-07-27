@@ -170,9 +170,10 @@ def identify_keywords(tokens):
     for i in range(len(tokens)):
         token = tokens[i]
 
-        if token.kind == 'identifier' and token.val in ['if', 'return', 'int',
-                                                        'static', 'else',
-                                                        'while', 'list']:
+        # Also: push, pop, len
+        keywords = ['if', 'return', 'int', 'static', 'else', 'while', 'list']
+
+        if token.kind == 'identifier' and token.val in keywords:
             token.kind = 'keyword'
 
 

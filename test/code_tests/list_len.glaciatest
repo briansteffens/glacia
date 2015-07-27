@@ -1,15 +1,19 @@
+0
+2
+3
+---
 int main()
 {
     list c = 0;
 
     print(len(c));
 
-    push(c, 5);
+    push(c, 1);
+    push(c, 3);
 
     print(len(c));
-    print(c[0]);
 
-    push(c, 7);
+    push(c, 4);
+
     print(len(c));
-    print(c[1]);
 }
