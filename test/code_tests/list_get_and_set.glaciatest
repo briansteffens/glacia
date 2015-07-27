@@ -3,7 +3,7 @@
 ---
 int main()
 {
-    list ar = 0;
+    list ar;
 
     ar[0] = 3;
     ar[1] = 7;

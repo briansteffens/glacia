@@ -8,6 +8,7 @@ from glacia.parser import parse
 from glacia.semantics import analyze
 from glacia.reducer import reduce
 from glacia.parameterizer import parameterize
+from glacia.sweetener import sweeten
 from glacia.generator import generate
 from glacia.loader import load
 from glacia.interpreter import interpret
@@ -46,6 +47,11 @@ def run(src, verbose=False, collect_stdout=False):
     parameterize(program)
     if verbose:
         divider('Parameterized')
+        print(print_program(program))
+
+    sweeten(program)
+    if verbose:
+        divider('Sweetened')
         print(print_program(program))
 
     generated = generate(program)

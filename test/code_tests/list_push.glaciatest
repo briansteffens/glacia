@@ -3,7 +3,7 @@
 ---
 int main()
 {
-    list c = 0;
+    list c;
 
     push(c, 5);
     push(c, 7);

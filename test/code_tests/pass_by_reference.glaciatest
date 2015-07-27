@@ -13,7 +13,7 @@ int f(list lst)
 
 int main()
 {
-    list c = 0;
+    list c;
 
     push(c, 3);
 

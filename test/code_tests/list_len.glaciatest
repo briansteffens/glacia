@@ -4,7 +4,7 @@
 ---
 int main()
 {
-    list c = 0;
+    list c;
 
     print(len(c));
 
