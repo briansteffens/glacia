@@ -48,7 +48,12 @@ class Interpreter(object):
 
         # Process built-ins
         if func_name == 'print':
-            out = str(eval_arg(0)['val'])
+            arg = eval_arg(0)
+
+            if 'address_id' in arg:
+                arg = self.mem_read(arg['address_id'])
+
+            out = str(arg['val'])
 
             if callable(self.stdout_func):
                 self.stdout_func(out)
@@ -255,6 +260,57 @@ class Interpreter(object):
         return ret
 
 
+    def mem_read(self, addr):
+        """
+        Read virtual database memory directly.
+
+        Arguments:
+            addr (str): The memory address to read.
+
+        Returns:
+            The address in memory in dict format.
+
+        """
+        return self.db.first("select * from addresses where id = %s;", (addr,))
+
+
+    def mem_write(self, addr, val):
+        """
+        Write to virtual database memory directly.
+
+        Arguments:
+            addr (str): The memory address to write.
+            val (dict): The value to write.
+
+        """
+        self.db.cmd("update addresses set val = %s, type = %s where id = %s;",
+                    (val['val'], val['type'], addr,))
+
+        return addr
+
+
+    def mem_alloc(self):
+        """
+        Allocate a new address in virtual database memory.
+
+        Returns:
+            The new memory address in dict format.
+
+        """
+        return self.db.autoid("insert into addresses (id) values ({$id});")
+
+
+    def mem_free(self, addr):
+        """
+        Free an address of virtual database memory.
+
+        Arguments:
+            addr (str): The address to free.
+
+        """
+        self.db.cmd("delete from addresses where id = %s;", (addr,))
+
+
     def create_local(self, call_id, label, type_, val):
         """
         Create and set a local variable.
@@ -266,9 +322,13 @@ class Interpreter(object):
             val (any): The initial value to assign to the variable.
 
         """
-        self.db.autoid("insert into locals (id, call_id, label, type, val) " +
-                       "values ({$id}, %s, %s, %s, %s);",
-                       (call_id, label, type_, val,))
+        addr = self.db.autoid("insert into addresses (id, type, val) " +
+                              "values ({$id}, %s, %s);",
+                              (type_, val,))
+
+        self.db.autoid("insert into locals (id, call_id, label, address_id) " +
+                       "values ({$id}, %s, %s, %s);",
+                       (call_id, label, addr))
 
 
     def get_local(self, call_id, label):
@@ -293,9 +353,14 @@ class Interpreter(object):
         except TypeError:
             pass
 
-        return self.db.first("select * from locals where call_id = %s and " +
-                             "label = %s;",
-                             (call_id, label,))
+        ret = self.db.first("select * from locals where call_id = %s and " +
+                            "label = %s;",
+                            (call_id, label,))
+
+        if ret is not None:
+            ret['cls'] = 'local'
+
+        return ret
 
 
     def set_local(self, call_id, label, val):
@@ -308,9 +373,9 @@ class Interpreter(object):
             val (any): The new value to assign to the local.
 
         """
-        self.db.cmd("update locals set val = %s where call_id = %s and " +
-                    "label = %s;",
-                    (val, call_id, label,))
+        local = self.get_local(call_id, label)
+        mem = self.mem_read(local['address_id'])
+        self.mem_write(local['address_id'], {'val': val, 'type': mem['type']})
 
 
     def exec(self, thread_id):
@@ -393,8 +458,10 @@ class Interpreter(object):
 
             """
             if isinstance(lit, dict) and 'cls' in lit:
-                ret = {'val': lit['val']}
-                if lit['cls'] == 'numeric':
+                ret = self.mem_read(lit['address_id'])
+                if lit['cls'] == 'local':
+                    pass
+                elif lit['cls'] == 'numeric':
                     ret['type'] = 'int'
                 elif lit['cls'] == 'string':
                     ret['type'] = 'string'
@@ -484,6 +551,8 @@ class Interpreter(object):
             raise Exception('Failed to get index '+str(index)+' '+
                             'from list '+str(target)+'.')
 
+        ret['cls'] = 'item'
+
         return ret
 
 
@@ -514,9 +583,11 @@ class Interpreter(object):
         self.db.cmd("delete from items where local_id = %s and ordinal = %s;",
                     (local['id'], index))
 
-        self.db.cmd("insert into items (local_id, ordinal, type, val) " +
-                    "values (%s, %s, %s, %s);",
-                    (local['id'], index, val['type'], val['val']))
+        addr = self.mem_write(self.mem_alloc(), val)
+
+        self.db.cmd("insert into items (local_id, ordinal, address_id) " +
+                    "values (%s, %s, %s);",
+                    (local['id'], index, addr,))
 
 
     def get_list(self, call, target):
@@ -531,13 +602,14 @@ class Interpreter(object):
 
         # Lookup the list.
         local = self.get_local(call['id'], target['label'])
+        mem = self.mem_read(local['address_id'])
 
         # Make sure the local found is a list.
-        if local['type'] != 'list':
-            raise Exception('Expected a list but found a '+local['type'+'.'])
+        if mem['type'] != 'list':
+            raise Exception('Expected a list but found a '+mem['type'+'.'])
 
-        if local['length'] is None:
-            local['length'] = 0
+        if mem['val'] is None:
+            mem['val'] = 0
 
         return local
 
@@ -552,8 +624,9 @@ class Interpreter(object):
 
         """
         local = self.get_list(call, target)
+        mem = self.mem_read(local['address_id'])
 
-        return 0 if local['length'] is None else local['length']
+        return 0 if mem['val'] is None else mem['val']
 
 
     def list_resize(self, lst, new_size):
@@ -565,16 +638,16 @@ class Interpreter(object):
             new_size (int): The new list size in elements.
 
         """
-        size_diff = new_size - lst['length']
+        mem = self.mem_read(lst['address_id'])
+
+        size_diff = new_size - int(mem['val'])
 
         # If there is no size difference, do nothing.
         if size_diff == 0:
             return
 
         # Update the bounds of the local in the database.
-        lst['length'] = new_size
-        self.db.cmd("update locals set length = %s where id = %s;",
-                    (lst['length'], lst['id'],))
+        self.mem_write(mem['id'], {'type': 'list','val': new_size})
 
         # If the list is being shrunk, delete any newly out-of-bounds items.
         if size_diff < 0:
@@ -593,7 +666,9 @@ class Interpreter(object):
 
         """
         local = self.get_list(call, target)
-        ordinal = local['length']
+        mem = self.mem_read(local['address_id'])
+
+        ordinal = int(mem['val'])
 
         self.list_resize(local, ordinal + 1)
 
@@ -610,12 +685,13 @@ class Interpreter(object):
 
         """
         local = self.get_list(call, target)
+        mem = self.mem_read(local['address_id'])
 
-        if local['length'] < 1:
+        if int(mem['val']) < 1:
             raise Exception('The list is already empty.')
 
         # Get the index of the last item in the list.
-        ordinal = local['length'] - 1
+        ordinal = int(mem['val']) - 1
 
         ret = self.get_item(call, target, ordinal)
 
@@ -746,6 +822,10 @@ class Interpreter(object):
         if expr['cls'] == 'argument':
             return self.eval_expression(call, expr['expression']['tokens'])
 
+        # If the expression is a local, return it.
+        if expr['cls'] in ['local', 'item']:
+            return expr
+
         # No evaluation possible.
         print('Unrecognized token class: ' + expr['cls'])
         raise NotImplemented
@@ -759,6 +839,12 @@ class Interpreter(object):
 
         # Perform standard expression evaluation.
         ret = self.eval_expression(call, token)
+
+        try:
+            if 'address_id' in ret:
+                ret = self.mem_read(ret['address_id'])
+        finally:
+            pass
 
         # Unpack the literal value of the result if present.
         if isinstance(ret, dict) and 'val' in ret:
@@ -798,8 +884,12 @@ class Interpreter(object):
                 raise NotImplemented
 
             type_ = inst['code']['modifiers'][0]
+
             if type_ == 'var':
-                type_ = val['type']
+                if 'address_id' in val:
+                    type_ = self.mem_read(val['address_id'])['type']
+                else:
+                    type_ = val['type']
 
             self.create_local(call['id'], bind, type_, val_stripped)
 

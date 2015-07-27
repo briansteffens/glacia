@@ -58,19 +58,28 @@ create table conditionals
 ,   foreign key (call_id) references calls (id) on delete cascade
 );
 
+/* Addresses in virtual database "memory". */
+create table addresses
+(
+    id char(3)
+,   type varchar(16)
+,   val varchar(255)
+
+,   primary key (id)
+);
+
 /* Local variables visible to a given call stack frame */
 create table locals
 (
     id char(3)
 ,   call_id char(3)
 ,   label varchar(255)
-,   type varchar(16)
-,   val varchar(255)
-,   length int null
+,   address_id char(3)
 
 ,   primary key (id)
 ,   unique (call_id, label)
 ,   foreign key (call_id) references calls (id) on delete cascade
+,   foreign key (address_id) references addresses (id) on delete cascade
 );
 
 /* List items */
@@ -78,9 +87,9 @@ create table items
 (
     local_id char(3)
 ,   ordinal int
-,   type varchar(16)
-,   val varchar(255)
+,   address_id char(3)
 
 ,   primary key (local_id, ordinal)
 ,   foreign key (local_id) references locals (id) on delete cascade
+,   foreign key (address_id) references addresses (id) on delete cascade
 );
