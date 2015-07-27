@@ -369,7 +369,8 @@ class Interpreter(object):
                        memory. val is ignored if ref is present.
 
         """
-        # No existing reference to point to. Allocate memory.
+
+        # No existing reference to point to.
         if ref is None:
             addr = self.mem_write(self.mem_alloc(), {'type': type_,'val': val})
 
@@ -377,6 +378,13 @@ class Interpreter(object):
         else:
             addr = ref
 
+        # Check for an existing local to update.
+        existing = self.get_local(call_id, label)
+        if existing is not None:
+            self.db.cmd("update locals set address_id = %s where id = %s;",
+                        (addr, existing['id'],))
+            return
+            
         self.db.autoid("insert into locals (id, call_id, label, address_id) " +
                        "values ({$id}, %s, %s, %s);",
                        (call_id, label, addr))
