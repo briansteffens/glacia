@@ -653,6 +653,8 @@ class Interpreter(object):
                 ret['val'] = left['val'] * right['val']
             elif oper['val'] == '/':
                 ret['val'] = left['val'] / right['val']
+            elif oper['val'] == '%':
+                ret['val'] = left['val'] % right['val']
             elif oper['val'] == '^':
                 ret['val'] = left['val'] ** right['val']
             elif oper['val'] == '==':
@@ -880,7 +882,7 @@ class Interpreter(object):
 
             # Perform multiple passes over the evaluated tokens in order to
             # evaluate operators in the correct order (the order of operations).
-            for opers in [['^'],['*','/'],['+','-'],
+            for opers in [['^'],['*','/','%'],['+','-'],
                           ['==','!=','<','<=','>','>=']]:
                 i = 0
                 while i < len(tokens):
