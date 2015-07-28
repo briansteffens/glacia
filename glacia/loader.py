@@ -43,11 +43,17 @@ def load_block(db, func_id, parent_id, instructions):
     previous_id = None
 
     for instruction in instructions:
+        # Remove the body from the copy saved to the database: the body will
+        # be written to the database as separate instructions.
+        copy = instruction.copy()
+        if "body" in copy:
+            del copy["body"]
+
         previous_id = db.autoid(
             "insert into instructions " +
             "(id, function_id, parent_id, previous_id, code) " +
             "values ({$id}, %s, %s, %s, %s);",
-            (func_id, parent_id, previous_id, json.dumps(instruction),))
+            (func_id, parent_id, previous_id, json.dumps(copy),))
 
         # Recursion
         if 'body' in instruction:
