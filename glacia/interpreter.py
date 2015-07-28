@@ -886,17 +886,27 @@ class Interpreter(object):
                 while i < len(tokens):
                     token = tokens[i]
 
-                    # If the token is an operator, perform operator evaluation.
+                    # Look for operators.
                     if isinstance(token, dict) and 'cls' in token and \
-                       token['cls'] == 'operator' and token['val'] in opers:
-                        # Evaluate the operator and replace this token, the
-                        # previous one, and the next one (all part of the
-                        # evaluation) with the result of the evaluation.
-                        tokens[i-1] = self.eval_operator(call, tokens[i-1],
-                                                         tokens[i], tokens[i+1])
-                        del tokens[i]
-                        del tokens[i]
-                        continue
+                       token['cls'] == 'operator':
+
+                        # Special handling for not operator (!).
+                        if token['val'] == '!':
+                            # Delete the not operator and reverse the operand.
+                            del tokens[i]
+                            tokens[i]['val'] = not tokens[i]['val']
+
+                        # Standard operator evaluation.
+                        elif token['val'] in opers:
+                            # Evaluate the operator and replace this token, the
+                            # previous one, and the next one (all part of the
+                            # evaluation) with the result of the evaluation.
+                            tokens[i-1] = self.eval_operator(call, tokens[i-1],
+                                                             tokens[i],
+                                                             tokens[i+1])
+                            del tokens[i]
+                            del tokens[i]
+                            continue
 
                     i += 1
 

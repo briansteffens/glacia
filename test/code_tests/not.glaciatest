@@ -1,0 +1,27 @@
+pass 1
+pass 2
+---
+int main()
+{
+    int i = 3;
+
+    if (i == 2)
+    {
+        print("fail 1");
+    }
+
+    if (!(i == 2))
+    {
+        print("pass 1");
+    }
+
+    if (i == 3)
+    {
+        print("pass 2");
+    }
+
+    if (!(i == 3))
+    {
+        print("fail 2");
+    }
+}
