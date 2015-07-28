@@ -6,6 +6,7 @@ from glacia import Database, close_after
 from glacia.lexer import lex
 from glacia.parser import parse
 from glacia.semantics import analyze
+from glacia.restructurer import restructure
 from glacia.reducer import reduce
 from glacia.parameterizer import parameterize
 from glacia.sweetener import sweeten
@@ -39,20 +40,16 @@ def run(src, verbose=False, collect_stdout=False):
         divider('Analyzed')
         print(print_program(program))
 
-    reduce(program)
-    if verbose:
-        divider('Reduced')
-        print(print_program(program))
+    def run_stage(label, func):
+        func(program)
+        if verbose:
+            divider(label)
+            print(print_program(program))
 
-    parameterize(program)
-    if verbose:
-        divider('Parameterized')
-        print(print_program(program))
-
-    sweeten(program)
-    if verbose:
-        divider('Sweetened')
-        print(print_program(program))
+    run_stage('Restructured', restructure)
+    run_stage('Reduced', reduce)
+    run_stage('Parameterized', parameterize)
+    run_stage('Sweetened', sweeten)
 
     generated = generate(program)
     #if verbose:

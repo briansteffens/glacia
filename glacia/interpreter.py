@@ -1111,7 +1111,12 @@ class Interpreter(object):
                 self.push_conditional(call, False)
 
             # Evaluate the conditional expression.
-            r = self.eval_expression(call, inst['code']['expression']['tokens'])
+            if 'expression' in inst['code']:
+                r = self.eval_expression(call,
+                                         inst['code']['expression']['tokens'])
+            # Default to true if no conditional is present.
+            else:
+                r = {'val': True,'type': 'int'}
 
             # If the conditional does not pass, skip the block.
             if not self.is_true(r):
