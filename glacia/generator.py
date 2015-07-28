@@ -36,7 +36,8 @@ def generate_block(instructions):
             'kind': instruction.kind,
         }
 
-        if hasattr(instruction, 'expression'):
+        if hasattr(instruction, 'expression') and \
+           instruction.expression is not None:
             r['expression'] = generate_any(instruction.expression)
 
             # call instruction

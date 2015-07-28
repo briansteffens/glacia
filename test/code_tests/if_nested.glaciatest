@@ -1,3 +1,7 @@
+pass 1
+pass 2
+pass 3
+---
 int main()
 {
     int x = 3;
@@ -24,4 +28,6 @@ int main()
     {
         print("fail 3");
     }
+
+    print("pass 3");
 }

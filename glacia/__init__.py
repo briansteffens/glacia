@@ -90,8 +90,11 @@ class Database(object):
             return row
 
     def scalar(self, *args):
-        for k,v in self.first(*args).items():
-            return v
+        ret = self.first(*args)
+
+        if ret is not None:
+            for k,v in ret.items():
+                return v
 
 
 class Token(object):
@@ -276,6 +279,18 @@ class While(Block):
         tabs = Block.indent(indent - 1)
         return tabs + 'while (' + str(self.expression) + ')\n' + \
                super().block_str(indent=indent)
+
+
+class Break(Instruction):
+
+    def __init__(self, expression):
+        super().__init__('break')
+
+        self.expression = expression
+
+    def __str__(self):
+        return 'break' + \
+               ('' if self.expression is None else ' ' + str(self.expression))
 
 
 class Return(Instruction):

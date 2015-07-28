@@ -34,8 +34,12 @@ for fn in glob.glob('test/code_tests/*.glaciatest'):
 
         expected = parts[0].strip()
 
-        # Run the test program and collect the standard output.
-        actual = run(parts[1].strip(), collect_stdout=True)
+        try:
+            # Run the test program and collect the standard output.
+            actual = run(parts[1].strip(), collect_stdout=True)
+        except:
+            print(color.print('Error running '+fn+':', 'red'))
+            raise
 
         # If the expected output matches the actual output, the test passed.
         if expected == '\n'.join(actual):

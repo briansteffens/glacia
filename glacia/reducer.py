@@ -107,7 +107,8 @@ def extract_calls(instruction, state):
             yield Assignment([Token('keyword', 'var')], binding,
                              Expression([deepest.call], process_calls=False))
 
-    if hasattr(instruction, 'expression'):
+    if hasattr(instruction, 'expression') and \
+       instruction.expression is not None:
         for r in __extract_calls(instruction.expression.tokens):
             yield r
 

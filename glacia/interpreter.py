@@ -155,8 +155,13 @@ class Interpreter(object):
         Look up the next instruction without changing hierarchical depth.
 
         """
-        return self.db.first("select * from instructions where previous_id=%s;",
-                             (instruction_id,))
+        ret = self.db.first("select * from instructions where previous_id=%s;",
+                            (instruction_id,))
+
+        if ret is not None:
+            ret['code'] = json.loads(ret['code'])
+
+        return ret
 
 
     def step_into(self, instruction_id):
@@ -283,6 +288,40 @@ class Interpreter(object):
         return self.db.first("select * from calls where id = %s;", (call_id,))
 
 
+    def call_delete(self, call):
+        """
+        Delete a call stack frame.
+
+        """
+        # Make sure the conditional stack is clear before leaving the call.
+        if self.db.scalar("select count(1) from conditionals where call_id=%s;",
+                          (call['id'],)) > 0:
+            raise Exception("Conditional stack not cleared.")
+
+        self.db.cmd("delete from calls where id = %s;", (call['id'],))
+
+
+    def call_advance(self, call, next_inst):
+        """
+        Advance a call frame's instruction pointer to the given instruction or
+        delete the call frame if there is no next instruction.
+
+        Arguments:
+            call (dict): The call stack frame to modify or delete.
+            next_inst (dict): The next instruction to point to or None.
+
+        """
+
+        # If end of function, delete the call frame.
+        if next_inst is None:
+            self.call_delete(call)
+
+        # Otherwise, update the call frame's instruction pointer.
+        else:
+            self.set_call_instruction(call['id'], None if next_inst is None
+                                                       else next_inst['id'])
+
+
     def get_instruction(self, instruction_id):
         """
         Get an instruction from the database by ID.
@@ -384,7 +423,7 @@ class Interpreter(object):
             self.db.cmd("update locals set address_id = %s where id = %s;",
                         (addr, existing['id'],))
             return
-            
+
         self.db.autoid("insert into locals (id, call_id, label, address_id) " +
                        "values ({$id}, %s, %s, %s);",
                        (call_id, label, addr))
@@ -455,7 +494,7 @@ class Interpreter(object):
 
         inst = self.call_instruction(call['id'])
 
-        # If the instruction stepped into a block, don't advanced the
+        # If the instruction stepped into a block, don't advance the
         # instruction pointer.
         if not self.eval(call, inst):
             return True
@@ -463,37 +502,93 @@ class Interpreter(object):
         # Advance instruction pointer to the next line.
         next_inst = self.step_over(inst['id'])
 
+        self.exit_conditional(call, inst)
+
         # If this is the end of a block (no more lines), resume the outer block.
         if next_inst is None:
-            # Look up the parent instruction if there is one.
-            parent_inst = None if inst['parent_id'] is None \
-                               else self.get_instruction(inst['parent_id'])
+            current = inst
 
-            next_inst = self.step_out(inst['id'])
+            while current['parent_id'] is not None:
+                # Look up the parent instruction if there is one.
+                parent_inst = None if current['parent_id'] is None \
+                              else self.get_instruction(current['parent_id'])
 
-            # Check if we are leaving a conditional and pop off the conditional
-            # stack if so.
-            if (parent_inst is not None and
-                parent_inst['code']['kind'] in ['if', 'else']) and \
-               (next_inst is None or
-                next_inst['code']['kind'] != 'else'):
-                self.pop_conditional(call)
+                # Check if we are leaving a while loop and repeat if so.
+                if parent_inst is not None and \
+                   parent_inst['code']['kind'] == 'while':
+                    next_inst = parent_inst
+                    break
 
-            # Check if we are leaving a while loop and repeat if so.
-            if parent_inst is not None and \
-               parent_inst['code']['kind'] == 'while':
-                next_inst = parent_inst
+                next_inst = self.step_out(current['id'])
 
-        # If end of function (no more blocks), delete the call stack frame.
-        if next_inst is None:
-            self.db.cmd("delete from calls where id = %s;", (call['id'],))
+                # Perform any needed cleanup on the conditional stack.
+                self.exit_conditional(call, parent_inst)
 
-        # A new instruction was found, update the call stack frame.
-        else:
-            self.set_call_instruction(call['id'], next_inst['id'])
+                if next_inst is not None:
+                    break
+
+                current = parent_inst
+
+        self.call_advance(call, next_inst)
 
         # Execution can continue
         return True
+
+
+    def exit_conditional(self, call, parent_inst):
+        """
+        Check if execution is leaving a conditional and pop off the conditional
+        stack if so.
+
+        Arguments:
+            call (dict): The call stack frame to execute within.
+            parent_inst (dict): The instruction whose block we are exiting from.
+
+        """
+
+        # Look up the next instruction
+        next_inst = None
+        if parent_inst is not None:
+            next_inst = self.step_over(parent_inst['id'])
+
+        if (parent_inst is not None and
+            parent_inst['code']['kind'] in ['if', 'else']) and \
+           (next_inst is None or
+            next_inst['code']['kind'] != 'else'):
+            self.pop_conditional(call)
+
+
+    def eval_break(self, call, break_inst):
+        """
+        Break out of one or more loops.
+
+        Arguments:
+            call (dict): The call stack frame to execute within.
+            break_inst (dict): The break instruction being evaluated.
+
+        """
+
+        current = break_inst
+
+        # Loop as long as there are parent instructions (until we are no longer
+        # in a block).
+        while current['parent_id'] is not None:
+            # Look up the parent instruction
+            parent_inst = self.get_instruction(current['parent_id'])
+
+            # If the next level above this one is a while loop, break out of it
+            # and end the break eval.
+            if parent_inst['code']['kind'] in ['while']:
+                next_inst = self.step_out(current['id'])
+
+                self.call_advance(call, next_inst)
+
+                return
+
+            # Perform any needed cleanup on the conditional stack.
+            self.exit_conditional(call, parent_inst)
+
+            current = parent_inst
 
 
     def eval_operator(self, call, left, oper, right):
@@ -1069,6 +1164,13 @@ class Interpreter(object):
         # Execute while statement
         elif inst['code']['kind'] == 'while':
             return process_conditional_block()
+
+        # Execute break statement
+        elif inst['code']['kind'] == 'break':
+            self.eval_break(call, inst)
+            # Do not advance the instruction pointer, it has been moved by
+            # break.
+            return False
 
         # Unrecognized instruction
         else:
