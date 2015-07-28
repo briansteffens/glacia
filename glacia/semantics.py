@@ -1,6 +1,6 @@
-
 from glacia import (Program, Function, Expression, Binding, Assignment, If,
                     Return, Parameter, Else, While, Break)
+from glacia.parser import Node
 
 
 def analyze(root):
@@ -64,48 +64,79 @@ def analyze_function(node):
     return func
 
 
-def analyze_block_contents(node):
+def analyze_block_contents(node, identify=True):
     """
     Analyze code within a block (function, if, loop, etc)
 
-    :param node: A parsed Node instance
-    :return: A list of Instruction instances
+    Arguments:
+        node (Node): The node to analyze.
+        identify (bool): Whether to run identify_keywords and identify_bindings.
+
+    Returns:
+        A list of Instruction instances.
+
     """
 
     ret = []
 
-    for n in node.nodes:
-        identify_keywords(n.tokens)
-        identify_bindings(n.tokens)
+    def consume_partial(n, token_count):
+        pass_identify = True
+
+        # If there is another command in the same instruction instead of
+        # a block, create a block and add the instruction to it.
+        #      EX: if (x == 3) print("a");
+        # BECOMES: if (x == 3) { print("a"); }
+        if len(n.tokens) > token_count:
+            original_nodes = n.nodes
+            n.nodes = [Node()]
+            n.nodes[0].tokens = n.tokens[token_count:]
+            n.nodes[0].nodes = original_nodes
+            n.tokens = n.tokens[0:token_count]
+            pass_identify = False
+
+        # Recur
+        if len(n.nodes) > 0:
+            instruction.body = analyze_block_contents(n, identify=pass_identify)
+
+        ret.append(instruction)
+
+    i = 0
+    while i < len(node.nodes):
+        n = node.nodes[i]
+
+
+
+        if identify:
+            identify_keywords(n.tokens)
+            identify_bindings(n.tokens)
 
         if hasattr(n.tokens[0], 'val') and n.tokens[0].val == 'if':
             if n.tokens[1].kind != 'parenthesis':
                 raise Exception('Expected if comparison expression.')
 
             instruction = If(Expression(n.tokens[1].tokens))
-            instruction.body = analyze_block_contents(n) # Recur
-            ret.append(instruction)
+            consume_partial(n, 2)
 
         elif hasattr(n.tokens[0], 'val') and n.tokens[0].val == 'else':
             expr = None
+            consume = 1
 
-            # If this is an "else if", set the grab the conditional expression.
+            # If this is an "else if", set the conditional expression.
             if len(n.tokens) >= 2 and \
                hasattr(n.tokens[1], 'val') and n.tokens[1].val == 'if' and \
                n.tokens[2].kind == 'parenthesis':
                 expr = n.tokens[2]
+                consume = 3
 
             instruction = Else(expression=expr)
-            instruction.body = analyze_block_contents(n) # Recur
-            ret.append(instruction)
+            consume_partial(n, consume)
 
         elif hasattr(n.tokens[0], 'val') and n.tokens[0].val == 'while':
             if n.tokens[1].kind != 'parenthesis':
                 raise Exception('Expected while comparison expression.')
 
             instruction = While(Expression(n.tokens[1].tokens))
-            instruction.body = analyze_block_contents(n) # Recur
-            ret.append(instruction)
+            consume_partial(n, 2)
 
         elif hasattr(n.tokens[0], 'val') and n.tokens[0].val == 'return':
             ret.append(Return(Expression(n.tokens[1:])))
@@ -121,6 +152,7 @@ def analyze_block_contents(node):
             else:
                 ret.append(Expression(n.tokens))
 
+        i += 1
 
     return ret
 
