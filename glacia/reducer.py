@@ -1,5 +1,5 @@
 
-from glacia import Assignment, Call, Binding, Expression, Token
+from glacia import Assignment, Call, Binding, Expression, Token, CompilerState
 
 
 class CallFound(object):
@@ -15,21 +15,7 @@ class CallFound(object):
         self.depth = depth
 
 
-class ReduceState(object):
-    """
-    Context details for a reduce call.
-
-    """
-
-    def __init__(self):
-        self.__temp_var_index = -1
-
-    def next_id(self):
-        self.__temp_var_index += 1
-        return 'temp_var_' + str(self.__temp_var_index)
-
-
-def reduce(program):
+def reduce(program, state):
     """
     Break nested function calls out into multiple lines with temp variables.
 
@@ -37,7 +23,7 @@ def reduce(program):
     :return: None
     """
     for function in program.functions:
-        reduce_block(function.body, ReduceState())
+        reduce_block(function.body, state)
 
 
 def reduce_block(instructions, state):
@@ -45,7 +31,7 @@ def reduce_block(instructions, state):
     Process a list of Instruction instances.
 
     :param instructions: A list of Instruction instances
-    :param state: An instance of ReduceState
+    :param state: An instance of CompilerState
     :return:None
     """
 
@@ -80,7 +66,7 @@ def extract_calls(instruction, state):
     Depth-first, replace calls with temporary variables set by previous lines.
 
     :param instruction: An Instruction instance
-    :param state: A ReduceState instance
+    :param state: A CompilerState instance
     :return: A generator which returns Assignment instances
     """
 
@@ -101,7 +87,7 @@ def extract_calls(instruction, state):
 
             # Replace the call with a temporary variable and yield the call
             # as a separate assignment instruction.
-            binding = Binding([Token('identifier', state.next_id())])
+            binding = state.next_id_binding()
             del deepest.ar[deepest.ar_index]
             deepest.ar.insert(deepest.ar_index, binding)
             yield Assignment([Token('keyword', 'var')], binding,

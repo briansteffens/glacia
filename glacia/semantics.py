@@ -1,5 +1,5 @@
 from glacia import (Program, Function, Expression, Binding, Assignment, If,
-                    Return, Parameter, Else, While, Break)
+                    Return, Parameter, Else, While, Break, Foreach)
 from glacia.parser import Node
 
 
@@ -165,6 +165,13 @@ def analyze_block_contents(state, node, identify=True):
             instruction = While(Expression(n.tokens[1].tokens))
             consume_partial(instruction, 2)
 
+        elif hasattr(n.tokens[0], 'val') and n.tokens[0].val == 'foreach':
+            if n.tokens[1].kind != 'parenthesis':
+                raise Exception('Expected foreach expression.')
+                
+            instruction = Foreach(Expression(n.tokens[1].tokens))
+            consume_partial(instruction, 2)
+
         elif hasattr(n.tokens[0], 'val') and n.tokens[0].val == 'return':
             ret.append(Return(Expression(n.tokens[1:])))
 
@@ -238,7 +245,7 @@ def identify_keywords(tokens):
 
         # Also: push, pop, len
         keywords = ['if', 'return', 'int', 'static', 'else', 'while', 'list',
-                    'break']
+                    'break', 'foreach', 'in']
 
         if token.kind == 'identifier' and token.val in keywords:
             token.kind = 'keyword'

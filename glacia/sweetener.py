@@ -1,7 +1,7 @@
 from glacia import Assignment, Expression, Token
 
 
-def sweeten(program):
+def sweeten(program, state):
     """
     Apply syntactic sugar.
 

@@ -12,6 +12,23 @@ config = configparser.RawConfigParser()
 config.read('/etc/glacia.conf')
 
 
+class CompilerState(object):
+    """
+    Keeps track of generated temp variables in a glacia compilation.
+
+    """
+
+    def __init__(self):
+        self.__temp_var_index = -1
+
+    def next_id(self):
+        self.__temp_var_index += 1
+        return 'temp_var_' + str(self.__temp_var_index)
+
+    def next_id_binding(self):
+        return Binding([Token('identifier', self.next_id())])
+
+
 @contextmanager
 def close_after(ret):
     try:
@@ -141,6 +158,9 @@ class Binding(object):
         return color.print('binding<', 'yellow')+ \
                ''.join([str(t) for t in self.tokens])+ \
                color.print('>', 'yellow')
+
+    def copy(self):
+        return Binding(self.tokens[:])
 
 
 class Expression(object):
@@ -278,6 +298,19 @@ class While(Block):
     def block_str(self, indent=0):
         tabs = Block.indent(indent - 1)
         return tabs + 'while (' + str(self.expression) + ')\n' + \
+               super().block_str(indent=indent)
+
+
+class Foreach(Block):
+
+    def __init__(self, expression):
+        super().__init__('foreach')
+
+        self.expression = expression
+
+    def block_str(self, indent=0):
+        tabs = Block.indent(indent - 1)
+        return tabs + 'foreach (' + str(self.expression) + ')\n' + \
                super().block_str(indent=indent)
 
 

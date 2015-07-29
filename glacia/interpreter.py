@@ -513,9 +513,9 @@ class Interpreter(object):
                 parent_inst = None if current['parent_id'] is None \
                               else self.get_instruction(current['parent_id'])
 
-                # Check if we are leaving a while loop and repeat if so.
+                # Check if we are leaving a loop and repeat if so.
                 if parent_inst is not None and \
-                   parent_inst['code']['kind'] == 'while':
+                   parent_inst['code']['kind'] in ['while', 'foreach']:
                     next_inst = parent_inst
                     break
 
@@ -576,9 +576,9 @@ class Interpreter(object):
             # Look up the parent instruction
             parent_inst = self.get_instruction(current['parent_id'])
 
-            # If the next level above this one is a while loop, break out of it
+            # If the next level above this one is a loop, break out of it
             # and end the break eval.
-            if parent_inst['code']['kind'] in ['while']:
+            if parent_inst['code']['kind'] in ['while', 'foreach']:
                 next_inst = self.step_out(current['id'])
 
                 self.call_advance(call, next_inst)
@@ -613,13 +613,14 @@ class Interpreter(object):
             """
             if isinstance(lit, dict) and 'cls' in lit:
                 ret = self.mem_read(lit['address_id'])
-                if lit['cls'] == 'local':
+                if lit['cls'] in ['local', 'item']:
                     pass
                 elif lit['cls'] == 'numeric':
                     ret['type'] = 'int'
                 elif lit['cls'] == 'string':
                     ret['type'] = 'string'
                 else:
+                    print("Unknown literal: " + str(lit))
                     raise NotImplemented
                 return ret
             else:
@@ -701,7 +702,7 @@ class Interpreter(object):
             pass
         except TypeError:
             pass
-        
+
         ret = self.db.first("select * from items where list_id = %s and " +
                             "ordinal = %s limit 1;",
                             (mem['id'], index,))
@@ -1184,6 +1185,10 @@ class Interpreter(object):
 
         # Execute while statement
         elif inst['code']['kind'] == 'while':
+            return process_conditional_block()
+
+        # Execute foreach statement
+        elif inst['code']['kind'] == 'foreach':
             return process_conditional_block()
 
         # Execute break statement

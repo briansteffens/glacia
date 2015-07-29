@@ -1,7 +1,7 @@
 from glacia import Argument, Expression
 
 
-def parameterize(program):
+def parameterize(program, state):
     """
     In call instructions, divide tokens into arguments by separating them on
     commas.

@@ -2,7 +2,7 @@ import json
 
 from glacia.debug import divider, print_tokens, print_nodes, print_program, \
                          print_db
-from glacia import Database, close_after
+from glacia import Database, close_after, CompilerState
 from glacia.preprocessor import preprocess
 from glacia.lexer import lex
 from glacia.parser import parse
@@ -17,6 +17,8 @@ from glacia.interpreter import interpret
 
 
 def run(src, verbose=False, collect_stdout=False):
+    state = CompilerState()
+
     if verbose:
         divider('Source code')
         print(src)
@@ -47,7 +49,7 @@ def run(src, verbose=False, collect_stdout=False):
         print(print_program(program))
 
     def run_stage(label, func):
-        func(program)
+        func(program, state)
         if verbose:
             divider(label)
             print(print_program(program))

@@ -1,0 +1,17 @@
+3
+7
+13
+---
+int main()
+{
+    list ar;
+
+    ar.push(3);
+    ar.push(7);
+    ar.push(13);
+
+    foreach (n in ar)
+    {
+        print(n);
+    }
+}
