@@ -1,5 +1,6 @@
 pass 1
 pass 2
+pass 2.5
 pass 3
 ---
 int main()
@@ -13,6 +14,12 @@ int main()
     if (2 == 2)
         if (3 == 3)
             print("pass 2");
+
+    if (4 == 4)
+        if (4 == 5)
+            print("fail 2");
+        else
+            print("pass 2.5");
 
     int x = 0;
     while (x < 3)

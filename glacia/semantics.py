@@ -3,34 +3,54 @@ from glacia import (Program, Function, Expression, Binding, Assignment, If,
 from glacia.parser import Node
 
 
+# The state of semantic analysis of a program.
+class AnalysisState(object):
+
+    def __init__(self):
+        # Stores a list of tokens already processed by identify_bindings() so
+        # they don't get double-processed.
+        self.processed_bindings = []
+
+
 def analyze(root):
     """
     Perform semantic analysis on a program.
 
-    :param root: A parsed Node instance
-    :return: A Program instance
+    Arguments:
+        root (Node): A parsed Node instance representing the root of a program.
+
+    Returns:
+        An analyzed Program instance.
+
     """
 
     ret = Program()
+    state = AnalysisState()
 
+    # Analyze each function.
     for node in root.nodes:
-        ret.functions.append(analyze_function(node))
+        ret.functions.append(analyze_function(state, node))
 
     return ret
 
 
-def analyze_function(node):
+def analyze_function(state, node):
     """
     Perform semantic analysis on a function.
 
-    :param node: A parsed Node instance
-    :return: A Function instance
+    Arguments:
+        state (AnalysisState): The analyzer state.
+        node (Node): A parsed Node instance representing a function.
+
+    Returns:
+        A Function instance.
+
     """
 
     func = Function()
     func.return_type = node.tokens.pop(0).val
     func.name = node.tokens.pop(0).val
-    func.body = analyze_block_contents(node)
+    func.body = analyze_block_contents(state, node)
 
     params = node.tokens.pop(0)
 
@@ -64,11 +84,12 @@ def analyze_function(node):
     return func
 
 
-def analyze_block_contents(node, identify=True):
+def analyze_block_contents(state, node, identify=True):
     """
     Analyze code within a block (function, if, loop, etc)
 
     Arguments:
+        state (AnalysisState): The state of the analysis.
         node (Node): The node to analyze.
         identify (bool): Whether to run identify_keywords and identify_bindings.
 
@@ -79,43 +100,49 @@ def analyze_block_contents(node, identify=True):
 
     ret = []
 
-    def consume_partial(n, token_count):
-        pass_identify = True
-
-        # If there is another command in the same instruction instead of
-        # a block, create a block and add the instruction to it.
-        #      EX: if (x == 3) print("a");
-        # BECOMES: if (x == 3) { print("a"); }
-        if len(n.tokens) > token_count:
-            original_nodes = n.nodes
-            n.nodes = [Node()]
-            n.nodes[0].tokens = n.tokens[token_count:]
-            n.nodes[0].nodes = original_nodes
-            n.tokens = n.tokens[0:token_count]
-            pass_identify = False
-
-        # Recur
-        if len(n.nodes) > 0:
-            instruction.body = analyze_block_contents(n, identify=pass_identify)
-
-        ret.append(instruction)
-
     i = 0
     while i < len(node.nodes):
         n = node.nodes[i]
 
+        def consume_partial(inst, token_count):
+            pass_identify = True
 
+            # If there is another command in the same instruction instead of
+            # a block, create a block and add the instruction to it.
+            #      EX: if (x == 3) print("a");
+            # BECOMES: if (x == 3) { print("a"); }
+            if len(n.tokens) > token_count:
+                original_nodes = n.nodes
+                n.nodes = [Node()]
+                n.nodes[0].tokens = n.tokens[token_count:]
+                n.nodes[0].nodes = original_nodes
+                n.tokens = n.tokens[0:token_count]
+                pass_identify = False
 
-        if identify:
-            identify_keywords(n.tokens)
-            identify_bindings(n.tokens)
+                # Pull any trailing else/else ifs up with us.
+                if hasattr(n.nodes[0].tokens[0], 'val') and \
+                   n.nodes[0].tokens[0].val == 'if':
+                    while len(node.nodes) > i + 1 and \
+                          hasattr(node.nodes[i + 1].tokens[0], 'val') and \
+                          node.nodes[i + 1].tokens[0].val == 'else':
+                         n.nodes.append(node.nodes[i + 1])
+                         del node.nodes[i + 1]
+
+            # Recur
+            if len(n.nodes) > 0:
+                inst.body = analyze_block_contents(state, n, identify=pass_identify)
+
+            ret.append(inst)
+
+        identify_keywords(n.tokens)
+        identify_bindings(state, n.tokens)
 
         if hasattr(n.tokens[0], 'val') and n.tokens[0].val == 'if':
             if n.tokens[1].kind != 'parenthesis':
                 raise Exception('Expected if comparison expression.')
 
             instruction = If(Expression(n.tokens[1].tokens))
-            consume_partial(n, 2)
+            consume_partial(instruction, 2)
 
         elif hasattr(n.tokens[0], 'val') and n.tokens[0].val == 'else':
             expr = None
@@ -129,14 +156,14 @@ def analyze_block_contents(node, identify=True):
                 consume = 3
 
             instruction = Else(expression=expr)
-            consume_partial(n, consume)
+            consume_partial(instruction, consume)
 
         elif hasattr(n.tokens[0], 'val') and n.tokens[0].val == 'while':
             if n.tokens[1].kind != 'parenthesis':
                 raise Exception('Expected while comparison expression.')
 
             instruction = While(Expression(n.tokens[1].tokens))
-            consume_partial(n, 2)
+            consume_partial(instruction, 2)
 
         elif hasattr(n.tokens[0], 'val') and n.tokens[0].val == 'return':
             ret.append(Return(Expression(n.tokens[1:])))
@@ -206,6 +233,9 @@ def identify_keywords(tokens):
     for i in range(len(tokens)):
         token = tokens[i]
 
+        if token.kind == 'keyword':
+            continue
+
         # Also: push, pop, len
         keywords = ['if', 'return', 'int', 'static', 'else', 'while', 'list',
                     'break']
@@ -214,7 +244,7 @@ def identify_keywords(tokens):
             token.kind = 'keyword'
 
 
-def identify_bindings(tokens):
+def identify_bindings(state, tokens):
     """
     Recursively identify bindings in a list of Token instances.
 
@@ -225,7 +255,7 @@ def identify_bindings(tokens):
     # Recursive call
     for t in tokens:
         if hasattr(t, 'tokens'):
-            identify_bindings(t.tokens)
+            identify_bindings(state, t.tokens)
 
     buffer = None
 
@@ -239,6 +269,14 @@ def identify_bindings(tokens):
 
     for i in reversed(range(len(tokens))):
         token = tokens[i]
+
+        if token in state.processed_bindings:
+            continue
+        else:
+            state.processed_bindings.append(token)
+
+        if token.kind == 'binding':
+            continue
 
         found_end = False
 

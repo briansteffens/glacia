@@ -52,6 +52,7 @@ def run(src, verbose=False, collect_stdout=False):
     run_stage('Sweetened', sweeten)
 
     generated = generate(program)
+
     #if verbose:
     #    divider('Generated DBIL')
     #    print(json.dumps(generated, indent=4, sort_keys=True))
