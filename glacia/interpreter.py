@@ -697,9 +697,11 @@ class Interpreter(object):
         # Get the raw index value if this is a token.
         try:
             index = index['val']
+        except KeyError:
+            pass
         except TypeError:
             pass
-
+        
         ret = self.db.first("select * from items where list_id = %s and " +
                             "ordinal = %s limit 1;",
                             (mem['id'], index,))
@@ -739,7 +741,7 @@ class Interpreter(object):
         # already and then an insert or update depending on the select. Might as
         # well just delete and insert.
         self.db.cmd("delete from items where list_id = %s and ordinal = %s;",
-                    (local['id'], index))
+                    (mem['id'], index))
 
         addr = self.mem_write(self.mem_alloc(), val)
 
@@ -914,6 +916,7 @@ class Interpreter(object):
 
             # There should only be one token left after all operator passes.
             if len(tokens) > 1:
+                print(tokens)
                 raise Exception("Expression could not be completely evaluated.")
 
             # Return the final evaluated result.
@@ -963,6 +966,7 @@ class Interpreter(object):
 
                     # Evaluate the indexer operation (as long as this is a get).
                     if not assignment_target:
+                        index = self.eval_expression_token(call, index)
                         last = self.get_item(call, last, index)
 
                     # If this is a set, pack this up as an unevaluated indexer.

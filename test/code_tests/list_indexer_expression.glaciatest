@@ -1,0 +1,18 @@
+3
+7
+5
+---
+int main()
+{
+    list ar;
+
+    ar.push(3);
+    ar.push(7);
+
+    int x = 0;
+    print(ar[x]);
+    print(ar[x + 1]);
+
+    ar[(x + 2) - 1] = 5;
+    print(ar.pop());
+}
