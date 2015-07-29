@@ -1,0 +1,15 @@
+7
+---
+// starting with
+/* comments */
+int main()
+{
+    int x = 7; // something
+
+    /*
+    x = 3; // comment in a comment
+    */
+
+    print(x);
+}
+/* ending with a comment */

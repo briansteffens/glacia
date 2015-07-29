@@ -3,6 +3,7 @@ import json
 from glacia.debug import divider, print_tokens, print_nodes, print_program, \
                          print_db
 from glacia import Database, close_after
+from glacia.preprocessor import preprocess
 from glacia.lexer import lex
 from glacia.parser import parse
 from glacia.semantics import analyze
@@ -18,6 +19,11 @@ from glacia.interpreter import interpret
 def run(src, verbose=False, collect_stdout=False):
     if verbose:
         divider('Source code')
+        print(src)
+
+    src = preprocess(src)
+    if verbose:
+        divider('Preprocessed.')
         print(src)
 
         divider('Partially lexed (still with whitespace)')
