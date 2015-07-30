@@ -1,0 +1,44 @@
+int main()
+{
+    list found;
+    int x = 2;
+
+    while (1)
+    {
+        int success = 1;
+        int i = 0;
+
+        foreach (f in found)
+        {
+            //if ((f >= x / 2) || (x % f == 0))
+                //print("asdf");
+/*
+            print("f:");
+            print(f);
+            print("x:");
+            print(x);
+            if (f >= x / 2)
+            {
+                print("done");
+                success = 0;
+                break;
+            }*/
+
+            if (x % f == 0)
+            {
+                success = 0;
+                break;
+            }
+        }
+
+        if (success == 1)
+        {
+            found.push(x);
+            print(x);
+        }
+
+        x = x + 1;
+    }
+
+    print(found[0]);
+}

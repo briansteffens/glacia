@@ -1,14 +1,14 @@
 Vagrant.configure(2) do |config|
     config.vm.box = "ubuntu/trusty64"
+    config.vm.hostname = "glacia.vm"
 
-    config.vm.define "glacia" do |glacia|
-        glacia.vm.hostname = "glacia.vm"
-        glacia.vm.network "public_network"
+    config.vm.provider :virtualbox do |vb|
+        vb.customize ["modifyvm", :id, "--memory", 2048]
+    end
 
-        glacia.vm.provider :virtualbox do |vb|
-            vb.customize ["modifyvm", :id, "--memory", 2048]
-        end
-
-        glacia.vm.provision :shell, path: "vagrant/setup.sh"
+    config.vm.provision :puppet do |puppet|
+        puppet.manifests_path = "puppet/manifests"
+        puppet.module_path = "puppet/modules"
+        puppet.options = ['--verbose']
     end
 end
