@@ -88,9 +88,13 @@ def lex(code, preserve_whitespace=False):
             ident_stop = None
 
         # Operators
-        if token.val in ['=','>','<','!','+','-','*','^','/','.',':','%']:
+        if token.val in ['=','>','<','!','+','-','*','^','/','.',':','%',
+                         '&','|']:
             try:
-                is_double = prev.kind == 'char' and prev.val in ['=','+','-']
+                is_double = False
+                if prev.kind == 'char':
+                    is_double = prev.val + token.val in ['==','++','--','&&',
+                                                         '||','>=','<=','!=']
             except AttributeError:
                 is_double = False
 
