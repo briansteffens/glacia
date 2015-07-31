@@ -126,7 +126,10 @@ class Interpreter(object):
             if 'address_id' in arg:
                 arg = self.mem_read(arg['address_id'])
 
-            out = str(arg['val'])
+            if isinstance(arg['val'], bool):
+                out = 'true' if arg['val'] else 'false'
+            else:
+                out = str(arg['val'])
 
             if callable(self.stdout_func):
                 self.stdout_func(out)
@@ -401,7 +404,10 @@ class Interpreter(object):
             The address in memory in dict format.
 
         """
-        return self.db.first("select * from addresses where id = %s;", (addr,))
+
+        ret = self.db.first("select * from addresses where id = %s;", (addr,))
+
+        return self.type_check(ret)
 
 
     def mem_write(self, addr, val):
@@ -646,6 +652,21 @@ class Interpreter(object):
             current = parent_inst
 
 
+    def type_check(self, token):
+        """
+        Ensure values are the right types.
+
+        """
+
+        if token['type'] == 'int':
+            token['val'] = int(token['val'])
+
+        elif token['type'] == 'bool':
+            token['val'] = bool(int(token['val']))
+
+        return token
+
+
     def eval_operator(self, call, left, oper, right):
         """
         Evaluate a simple expression such as (x * y) or ("hello " + "world").
@@ -672,6 +693,8 @@ class Interpreter(object):
                     pass
                 elif lit['cls'] == 'numeric':
                     ret['type'] = 'int'
+                elif lit['cls'] == 'boolean':
+                    ret['type'] = 'bool'
                 elif lit['cls'] == 'string':
                     ret['type'] = 'string'
                 else:
@@ -681,19 +704,9 @@ class Interpreter(object):
             else:
                 return lit
 
-        def type_check(token):
-            """
-            Ensure values are the right types.
-
-            """
-            if token['type'] == 'int':
-                token['val'] = int(token['val'])
-
-            return token
-
         # Get the operands ready to evaluate.
-        left = type_check(coax_literal(left))
-        right = type_check(coax_literal(right))
+        left = self.type_check(coax_literal(left))
+        right = self.type_check(coax_literal(right))
 
         ret = {}
 
@@ -1058,6 +1071,13 @@ class Interpreter(object):
         if expr['cls'] in ['local', 'item']:
             return expr
 
+        # If the expression is a boolean literal, return it.
+        if expr['cls'] == 'keyword' and expr['val'] in ['true', 'false']:
+            return {
+                'type': 'bool',
+                'val': expr['val'] == 'true',
+            }
+
         # No evaluation possible.
         print('Unrecognized token class: ' + expr['cls'])
         raise NotImplemented
@@ -1180,9 +1200,14 @@ class Interpreter(object):
             if 'expression' in inst['code']:
                 r = self.eval_expression(call,
                                          inst['code']['expression']['tokens'])
+
+                # If this is a pointer, resolve it.
+                if 'address_id' in r:
+                    r = self.mem_read(r['address_id'])
+
             # Default to true if no conditional is present.
             else:
-                r = {'val': True,'type': 'int'}
+                r = {'val': True,'type': 'bool'}
 
             # If the conditional does not pass, skip the block.
             if not self.is_true(r):

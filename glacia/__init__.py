@@ -274,7 +274,7 @@ class Else(Block):
         super().__init__('else')
 
         if expression is None:
-            expression = Expression([Token('numeric', '1')])
+            expression = Expression([Token('keyword', 'true')])
 
         self.expression = expression
 

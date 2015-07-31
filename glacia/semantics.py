@@ -130,7 +130,8 @@ def analyze_block_contents(state, node, identify=True):
 
             # Recur
             if len(n.nodes) > 0:
-                inst.body = analyze_block_contents(state, n, identify=pass_identify)
+                inst.body = analyze_block_contents(state, n,
+                                                   identify=pass_identify)
 
             ret.append(inst)
 
@@ -168,7 +169,7 @@ def analyze_block_contents(state, node, identify=True):
         elif hasattr(n.tokens[0], 'val') and n.tokens[0].val == 'foreach':
             if n.tokens[1].kind != 'parenthesis':
                 raise Exception('Expected foreach expression.')
-                
+
             instruction = Foreach(Expression(n.tokens[1].tokens))
             consume_partial(instruction, 2)
 
@@ -245,7 +246,7 @@ def identify_keywords(tokens):
 
         # Also: push, pop, len
         keywords = ['if', 'return', 'int', 'static', 'else', 'while', 'list',
-                    'break', 'foreach', 'in']
+                    'break', 'foreach', 'in', 'bool', 'true', 'false']
 
         if token.kind == 'identifier' and token.val in keywords:
             token.kind = 'keyword'

@@ -1,0 +1,35 @@
+true
+false
+yes b
+no c
+yes true
+no false
+---
+int main()
+{
+    bool b = true;
+    bool c = false;
+
+    print(b);
+    print(c);
+
+    if (b)
+        print("yes b");
+    else
+        print("no b");
+
+    if (c)
+        print("yes c");
+    else
+        print("no c");
+
+    if (true)
+        print("yes true");
+    else
+        print("no true");
+
+    if (false)
+        print("yes false");
+    else
+        print("no false");
+}

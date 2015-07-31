@@ -3,21 +3,20 @@ int main()
     list found;
     int x = 2;
 
-    while (1)
+    while (true)
     {
-        int success = 1;
-        int i = 0;
+        bool success = true;
 
         foreach (f in found)
         {
             if (x % f == 0)
             {
-                success = 0;
+                success = false;
                 break;
             }
         }
 
-        if (success == 1)
+        if (success)
         {
             found.push(x);
             print(x);
