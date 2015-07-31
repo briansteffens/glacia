@@ -12,17 +12,72 @@ class Interpreter(object):
         self.stdout_func = stdout_func
 
 
-    def run(self):
+    def start(self):
+        """
+        Start a loaded program by creating a thread and calling the main()
+        function.
+
+        Returns:
+            The newly-created thread ID.
+
+        """
+
         thread_id = self.db.autoid("insert into threads (id) values ({$id});")
 
         self.call(thread_id, {'tokens': [{'val': 'main'}]}, [])
 
+        self.db.commit()
+
+        return thread_id
+
+
+    def run(self, thread_id=None):
+        """
+        Run the loaded program to completion.
+
+        """
+
+        if thread_id is None:
+            thread_id = self.get_main_thread_id()
+
         try:
-            while self.exec(thread_id):
-                self.gc()
-                self.db.commit()
+            while self.run_one_line(thread_id=thread_id):
+                pass
         finally:
             self.db.commit()
+
+
+    def run_one_line(self, thread_id=None):
+        """
+        Run one line of the loaded program.
+
+        Arguments:
+            thread_id (str): The thread to run. If None, the main thread will
+                             be used.
+
+        Returns:
+            True if there are more lines to be run, False if the program has
+            finished.
+
+        """
+
+        if thread_id is None:
+            thread_id = self.get_main_thread_id()
+
+        ret = self.exec(thread_id)
+        self.gc()
+        self.db.commit()
+
+        return ret
+
+
+    def get_main_thread_id(self):
+        """
+        Get the main thread ID.
+
+        """
+
+        return self.db.scalar("select id from threads limit 1;")
 
 
     def call(self, thread_id, binding, arguments, caller_id=None):

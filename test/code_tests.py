@@ -36,7 +36,7 @@ for fn in glob.glob('test/code_tests/*.glaciatest'):
 
         try:
             # Run the test program and collect the standard output.
-            actual = run(parts[1].strip(), collect_stdout=True)
+            actual = run(src=parts[1].strip(), collect_stdout=True)
         except:
             print(color.print('Error running '+fn+':', 'red'))
             raise

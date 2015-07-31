@@ -12,7 +12,8 @@ def load(db, generated):
 
     # Clear existing program
     db.cmd('set foreign_key_checks = 0;')
-    for table in ['locals','calls','threads','instructions','functions']:
+    for table in ['locals', 'calls', 'threads', 'instructions', 'functions',
+                  'conditionals', 'addresses', 'items']:
         db.cmd('delete from ' + table + ';')
     db.cmd('set foreign_key_checks = 1;')
 

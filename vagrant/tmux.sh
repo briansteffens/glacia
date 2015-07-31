@@ -6,7 +6,7 @@
 cd /vagrant
 
 tmux new-session -d -s glacia -n console
-tmux send-keys -t glacia "vagrant ssh -c \"bash -c 'cd /vagrant; exec bash'\"" ^m "python3 glacia/run.py"
+tmux send-keys -t glacia "vagrant ssh -c \"bash -c 'cd /vagrant; exec bash'\"" ^m "glacia -f examples/primes.glacia"
 sleep 1
 
 tmux new-window -n "db"

@@ -26,3 +26,8 @@ file { '/home/vagrant/.bashrc':
   ensure => 'link',
   target => '/vagrant/vagrant/bashrc',
 }
+
+file { '/bin/glacia':
+  ensure => 'link',
+  target => '/vagrant/glacia/cli.py',
+}
