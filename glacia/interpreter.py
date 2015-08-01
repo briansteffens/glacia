@@ -1,7 +1,7 @@
 import json
 
 
-loop_keywords = ['while', 'foreach']
+loop_keywords = ['while', 'foreach', 'for']
 
 
 def interpret(db, stdout_func=None):
@@ -95,8 +95,8 @@ class Interpreter(object):
                               the case of the initial main() call).
 
         Returns:
-            For built-ins, returns the result of the call. Otherwise, returns
-            None.
+            For built-ins, returns the result of the call. For generator
+            functions, returns a generator. Otherwise, returns None.
 
         """
 
@@ -154,6 +154,13 @@ class Interpreter(object):
         elif func_name == 'pop':
             return self.list_pop(current_call, evaled[0])
 
+        elif func_name == 'next':
+            self.generator_next(current_call, evaled[0], caller_id)
+            return
+
+        elif func_name == 'finished':
+            return self.generator_finished(current_call, evaled[0])
+
         # Look up the function in the database
         function = self.db.first("select * from functions where label = %s;",
                                  (func_name,))
@@ -165,13 +172,16 @@ class Interpreter(object):
                                  "parent_id is null and previous_id is null;",
                                  (function['id'],))
 
-        # Get the size of the call stack
-        depth = self.db.scalar("select max(depth) + 1 from calls " +
-                               "where thread_id = %s",
-                               (thread_id,))
+        if function['return_type'] == 'generator':
+            depth = None
+        else:
+            # Get the size of the call stack
+            depth = self.db.scalar("select max(depth) + 1 from calls " +
+                                   "where thread_id = %s",
+                                   (thread_id,))
 
-        if depth is None:
-            depth = 0
+            if depth is None:
+                depth = 0
 
         # Push this call onto the call stack
         call_id = self.db.autoid("insert into calls (id, thread_id, depth, " +
@@ -204,6 +214,46 @@ class Interpreter(object):
 
             self.create_local(call_id, function['arguments'][i]['name'],
                               function['arguments'][i]['type'], val, ref=ref)
+
+        if function['return_type'] == 'generator':
+            return {
+                'type': 'generator',
+                'val': call_id,
+            }
+
+
+    def generator_next(self, call, generator, caller_id):
+        """
+        Restore a generator's call stack frame.
+
+        """
+
+        mem = self.mem_read(generator['address_id'])
+        generator_call = self.get_call(mem['val'])
+
+        depth = self.db.scalar("select max(depth) from calls " +
+                               "where thread_id = %s;",
+                               (generator_call['thread_id'],))
+
+        self.db.cmd("update calls set depth = %s, calling_instruction_id = %s "+
+                    "where id = %s;",
+                    (depth + 1, caller_id, generator_call['id']))
+
+
+    def generator_finished(self, call, generator):
+        """
+        Check if a generator is finished or not.
+
+        """
+
+        mem = self.mem_read(generator['address_id'])
+
+        # If the generator points to a call stack frame which does not exist,
+        # it is considered to be finished as there is nothing to restore.
+        return {
+            'type': 'bool',
+            'val': (self.get_call(mem['val']) is None),
+        }
 
 
     def set_call_instruction(self, call_id, instruction_id):
@@ -373,6 +423,7 @@ class Interpreter(object):
         :return: The call stack frame in dict form
         """
         return self.db.first("select * from calls where thread_id = %s " +
+                             "and depth is not null " +
                              "order by depth desc limit 1;",
                              (thread_id,))
 
@@ -928,7 +979,7 @@ class Interpreter(object):
 
         # Make sure the local found is a list.
         if mem['type'] != 'list':
-            raise Exception('Expected a list but found a '+mem['type'+'.'])
+            raise Exception('Expected a list but found a '+mem['type']+'.')
 
         if mem['val'] is None:
             mem['val'] = 0
@@ -1331,7 +1382,7 @@ class Interpreter(object):
                 self.eval_assignment(call, inst, assign)
 
         # Evaluate return instruction
-        elif inst['code']['kind'] == 'return':
+        elif inst['code']['kind'] in ['return', 'yield', 'yield break']:
             # Look up the call stack frame we're returning to.
             parent = self.parent_call(call)
 
@@ -1339,12 +1390,28 @@ class Interpreter(object):
             parent_inst = self.call_instruction(parent['id'])
 
             # Map the return value to the variable in the call instruction.
-            v = self.eval_expression(call, inst['code']['expression']['tokens'])
+            try:
+                v = self.eval_expression(call,
+                                         inst['code']['expression']['tokens'])
+            except KeyError:
+                # In the case of yield break, return null.
+                v = {
+                    'type': 'special',
+                    'val': 'null'
+                }
 
             # Get the call instruction that invoked the now-returning function.
             caller_inst = self.get_instruction(call['calling_instruction_id'])
 
             self.eval_assignment(parent, caller_inst, v)
+
+            # For returns, delete the call stack frame.
+            if inst['code']['kind'] == 'return':
+                self.db.cmd("delete from calls where id = %s", (call['id'],))
+            # For yields, stash the call stack frame.
+            elif inst['code']['kind'] == 'yield':
+                self.db.cmd("update calls set depth = null where id = %s",
+                            (call['id'],))
 
         # Execute if statement
         elif inst['code']['kind'] == 'if':
@@ -1355,12 +1422,8 @@ class Interpreter(object):
             if not self.read_conditional(call):
                 return process_conditional_block()
 
-        # Execute while statement
-        elif inst['code']['kind'] == 'while':
-            return process_conditional_block()
-
-        # Execute foreach statement
-        elif inst['code']['kind'] == 'foreach':
+        # Execute loops
+        elif inst['code']['kind'] in loop_keywords:
             return process_conditional_block()
 
         # Execute break statement

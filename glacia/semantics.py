@@ -1,5 +1,6 @@
 from glacia import (Program, Function, Expression, Binding, Assignment, If,
-                    Return, Parameter, Else, While, Break, Foreach, Continue)
+                    Return, Parameter, Else, While, Break, Foreach, Continue,
+                    Yield, YieldBreak, For)
 from glacia.parser import Node
 
 
@@ -80,6 +81,10 @@ def analyze_function(state, node):
 
     if len(node.tokens) > 0:
         raise Exception('Unexpected tokens after function def.')
+
+    if func.return_type == 'generator' and len(func.body) > 0 and \
+       func.body[-1].kind != 'yield break':
+        func.body.append(YieldBreak())
 
     return func
 
@@ -184,8 +189,24 @@ def analyze_block_contents(state, node, identify=True):
             instruction = Foreach(Expression(n.tokens[1].tokens))
             consume_partial(instruction, 2)
 
+        elif hasattr(n.tokens[0], 'val') and n.tokens[0].val == 'for':
+            if n.tokens[1].kind != 'parenthesis':
+                raise Exception('Expected for expression.')
+
+            instruction = For(Expression(n.tokens[1].tokens))
+            consume_partial(instruction, 2)
+
         elif hasattr(n.tokens[0], 'val') and n.tokens[0].val == 'return':
             ret.append(Return(Expression(n.tokens[1:])))
+
+        elif hasattr(n.tokens[0], 'val') and n.tokens[0].val == 'yield':
+            # Check for yield break.
+            if len(n.tokens) == 2 and n.tokens[1].kind == 'keyword' and \
+               n.tokens[1].val == 'break':
+                ret.append(YieldBreak())
+            # Otherwise assume yield.
+            else:
+                ret.append(Yield(Expression(n.tokens[1:])))
 
         elif hasattr(n.tokens[0], 'val') and n.tokens[0].val == 'break':
             ret.append(Break(None if len(n.tokens) < 2
@@ -265,7 +286,7 @@ def identify_keywords(tokens):
         # Also: push, pop, len
         keywords = ['if', 'return', 'int', 'static', 'else', 'while', 'list',
                     'break', 'foreach', 'in', 'bool', 'true', 'false',
-                    'continue']
+                    'continue', 'generator', 'yield', 'for']
 
         if token.kind == 'identifier' and token.val in keywords:
             token.kind = 'keyword'

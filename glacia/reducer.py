@@ -82,7 +82,9 @@ def extract_calls(instruction, state):
                     deepest = found
 
             # No more nested calls
-            if deepest is None or (total == 1 and len(tokens) == 1):
+            if deepest is None or \
+               (instruction.kind in ['assignment', 'expression']
+                and total == 1 and len(tokens) == 1):
                 raise StopIteration
 
             # Replace the call with a temporary variable and yield the call

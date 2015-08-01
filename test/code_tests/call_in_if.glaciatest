@@ -1,0 +1,25 @@
+yes 1
+no 2
+---
+bool yes()
+{
+    return true;
+}
+
+bool no()
+{
+    return false;
+}
+
+int main()
+{
+    if (yes())
+        print("yes 1");
+    else
+        print("no 1");
+
+    if (no())
+        print("yes 2");
+    else
+        print("no 2");
+}

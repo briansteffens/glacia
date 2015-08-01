@@ -332,6 +332,20 @@ class Foreach(Block):
                super().block_str(indent=indent)
 
 
+class For(Block):
+
+    def __init__(self, expression):
+        super().__init__('for')
+
+        self.expression = expression
+
+    def block_str(self, indent=0):
+        tabs = Block.indent(indent - 1)
+        return tabs + self.str_label() + \
+               'for (' + str(self.expression) + ')\n' + \
+               super().block_str(indent=indent)
+
+
 class Break(Instruction):
 
     def __init__(self, expression):
@@ -365,6 +379,26 @@ class Return(Instruction):
 
     def __str__(self):
         return self.str_label() + 'return ' + str(self.expression)
+
+
+class Yield(Instruction):
+
+    def __init__(self, expression):
+        super().__init__('yield')
+
+        self.expression = expression
+
+    def __str__(self):
+        return self.str_label() + 'yield ' + str(self.expression)
+
+
+class YieldBreak(Instruction):
+
+    def __init__(self):
+        super().__init__('yield break')
+
+    def __str__(self):
+        return self.str_label() + 'yield break'
 
 
 class Assignment(Instruction):

@@ -53,6 +53,44 @@ def restructure_instruction(instruction, state):
         instruction.body.insert(0, expr)
         instruction.expression = None
 
+    elif instruction.kind == 'for':
+        # Initialize the item variable (f in "for (f in items)")
+        pre_instructions.append(Assignment([Token('keyword', 'var')],
+                                instruction.expression.tokens[0],
+                                Expression([Token('numeric', '0')])))
+
+        # Calls should be broken out before the loop.
+        if instruction.expression.tokens[2].kind == 'call':
+            gen_temp = state.next_id_binding()
+
+            pre_instructions.append(
+                Assignment([Token('keyword', 'var')], gen_temp,
+                Expression([instruction.expression.tokens[2]])))
+
+            instruction.expression.tokens[2] = gen_temp
+
+        # Inside the loop, start by calling next() on the generator.
+        next_bind = instruction.expression.tokens[2].copy()
+        next_bind.tokens.append(Token('operator', '.'))
+        next_bind.tokens.append(Token('identifier', 'next'))
+
+        gen_next = Assignment([], instruction.expression.tokens[0],
+                              Expression([Call(next_bind, [])]))
+
+        instruction.body.insert(0, gen_next)
+
+        # Then check if the generator is finished and break the loop if so.
+        finished_bind = instruction.expression.tokens[2].copy()
+        finished_bind.tokens.append(Token('operator', '.'))
+        finished_bind.tokens.append(Token('identifier', 'finished'))
+
+        gen_finished = If(Expression([Call(finished_bind, [])]))
+        gen_finished.body.append(Break(None))
+
+        instruction.body.insert(1, gen_finished)
+
+        instruction.expression = None
+
     elif instruction.kind == 'foreach':
         # Generate a temp var to use as the indexer.
         indexer_temp_var = state.next_id_binding()

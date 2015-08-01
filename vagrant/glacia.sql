@@ -38,7 +38,7 @@ create table calls
 (
     id char(3)
 ,   thread_id char(3)
-,   depth bigint unsigned
+,   depth bigint unsigned null
 ,   instruction_id char(3)
 ,   calling_instruction_id char(3) null
 
