@@ -139,9 +139,20 @@ class Program(object):
         self.functions = []
 
 
-class Instruction(object):
+class Labelable(object):
+
+    def __init__(self):
+        self.label = None
+
+    def str_label(self):
+        return '' if self.label == None else self.label + ': '
+
+
+class Instruction(Labelable):
 
     def __init__(self, kind):
+        super().__init__()
+
         self.kind = kind
 
     def __str__(self):
@@ -198,15 +209,18 @@ class Argument(object):
         return 'arg<'+str(self.expression)+'>'
 
 
-class Call(object):
+class Call(Labelable):
 
     def __init__(self, binding, params):
+        super().__init__()
+
         self.kind = 'call'
         self.binding = binding
         self.params = params
 
     def __str__(self):
-        return color.print('call<', 'red')+str(self.binding)+ \
+        return self.str_label()+\
+               color.print('call<', 'red')+str(self.binding)+ \
                color.print('('+','.join([str(p) for p in self.params])+')',
                            'purple')+ \
                color.print('>', 'red')
@@ -251,7 +265,8 @@ class Function(Block):
     def __str__(self):
         return color.print('func<'+self.return_type+" "+self.name, "red") + \
                color.print("(" + \
-                           ",".join([str(a) for a in self.params]) + ")", "purple") + \
+                           ",".join([str(a) for a in self.params]) + ")",
+                           "purple") + \
                color.print('>', 'red') + "\n" + super().__str__()
 
 
@@ -264,7 +279,7 @@ class If(Block):
 
     def block_str(self, indent=0):
         tabs = Block.indent(indent - 1)
-        return tabs+"if (" + str(self.expression) + ")\n" + \
+        return tabs+self.str_label()+"if (" + str(self.expression) + ")\n" + \
                super().block_str(indent=indent)
 
 
@@ -285,7 +300,8 @@ class Else(Block):
         if self.expression is not None:
             expr = ' if (' + str(self.expression) + ')'
 
-        return tabs+"else" + expr + "\n" + super().block_str(indent=indent)
+        return tabs+self.str_label()+\
+               "else" + expr + "\n" + super().block_str(indent=indent)
 
 
 class While(Block):
@@ -297,7 +313,8 @@ class While(Block):
 
     def block_str(self, indent=0):
         tabs = Block.indent(indent - 1)
-        return tabs + 'while (' + str(self.expression) + ')\n' + \
+        return tabs + self.str_label() + \
+               'while (' + str(self.expression) + ')\n' + \
                super().block_str(indent=indent)
 
 
@@ -310,7 +327,8 @@ class Foreach(Block):
 
     def block_str(self, indent=0):
         tabs = Block.indent(indent - 1)
-        return tabs + 'foreach (' + str(self.expression) + ')\n' + \
+        return tabs + self.str_label() + \
+               'foreach (' + str(self.expression) + ')\n' + \
                super().block_str(indent=indent)
 
 
@@ -322,7 +340,19 @@ class Break(Instruction):
         self.expression = expression
 
     def __str__(self):
-        return 'break' + \
+        return self.str_label() + 'break' + \
+               ('' if self.expression is None else ' ' + str(self.expression))
+
+
+class Continue(Instruction):
+
+    def __init__(self, expression):
+        super().__init__('continue')
+
+        self.expression = expression
+
+    def __str__(self):
+        return self.str_label() + 'continue' + \
                ('' if self.expression is None else ' ' + str(self.expression))
 
 
@@ -334,7 +364,7 @@ class Return(Instruction):
         self.expression = expression
 
     def __str__(self):
-        return 'return ' + str(self.expression)
+        return self.str_label() + 'return ' + str(self.expression)
 
 
 class Assignment(Instruction):
@@ -351,7 +381,8 @@ class Assignment(Instruction):
         if len(self.modifiers) > 0:
             mods = '['+','.join([str(m) for m in self.modifiers])+'] '
 
-        return 'assignment<'+mods+str(self.binding)+' = '+str(self.expression)+ \
+        return self.str_label() + \
+               'assignment<'+mods+str(self.binding)+' = '+str(self.expression)+\
                '>'
 
 

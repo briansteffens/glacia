@@ -1,0 +1,20 @@
+3
+done
+---
+int main()
+{
+    list ar;
+    ar.push(3);
+    ar.push(7);
+
+    something: foreach (f in ar)
+    {
+        while (true)
+        {
+            print(f);
+            break something;
+        }
+    }
+
+    print("done");
+}

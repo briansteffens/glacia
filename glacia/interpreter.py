@@ -1,6 +1,9 @@
 import json
 
 
+loop_keywords = ['while', 'foreach']
+
+
 def interpret(db, stdout_func=None):
     Interpreter(db, stdout_func=stdout_func).run()
 
@@ -246,6 +249,64 @@ class Interpreter(object):
             ret['code'] = json.loads(ret['code'])
 
         return ret
+
+
+    def step_out_greedy(self, call, inst):
+        """
+        Step out of the given instruction to the next executable line, taking
+        conditionals and loops into account.
+
+        """
+
+        self.exit_conditional(call, inst)
+
+        for parent in self.step_up(call, inst):
+            # If the next level above this one is a loop, then loop.
+            if parent['code']['kind'] in loop_keywords:
+                return parent
+
+            self.exit_conditional(parent, inst)
+
+            # If the parent is not a loop, find the next line after it.
+            next_inst = self.step_over(parent['id'])
+
+            if next_inst is not None:
+                return next_inst
+
+
+    def step_over_or_out_greedy(self, call, inst):
+        """
+        Advance the instruction pointer to the next executable instruction.
+
+        """
+
+        next_inst = self.step_over(inst['id'])
+
+        if next_inst is None:
+            next_inst = self.step_out_greedy(call, inst)
+        else:
+            self.exit_conditional(call, inst)
+
+        self.call_advance(call, next_inst)
+
+
+    def get_instruction_by_label(self, function_id, label):
+        """
+        Look up an instruction in a function by label.
+
+        Arguments:
+            function_id (str): The ID of the function to search.
+            label (str): The label name to find.
+
+        Returns:
+            The instruction in dict-format.
+
+        """
+        id = self.db.scalar("select id from instructions " +
+                            "where function_id = %s and label = %s limit 1;",
+                            (function_id, label,))
+
+        return self.get_instruction(id)
 
 
     def conditional_depth(self, call):
@@ -537,6 +598,38 @@ class Interpreter(object):
         self.mem_write(local['address_id'], {'val': val, 'type': mem['type']})
 
 
+    def step_up(self, call, inst):
+        current = inst
+
+        # Perform any needed cleanup on the conditional stack.
+        self.exit_conditional(call, current)
+
+        while current['parent_id'] is not None:
+            # Look up the parent instruction if there is one.
+            parent_inst = self.get_instruction(current['parent_id'])
+
+            if parent_inst is None:
+                raise StopIteration
+
+            # Perform any needed cleanup on the conditional stack.
+            self.exit_conditional(call, parent_inst)
+
+            yield parent_inst
+
+            current = parent_inst
+
+
+    def step_up_loops(self, call, inst):
+        """
+        Step up from the given instruction, yielding any loops encountered.
+
+        """
+
+        for parent in self.step_up(call, inst):
+            if parent['code']['kind'] in loop_keywords:
+                yield parent
+
+
     def exec(self, thread_id):
         """
         Execute an instruction in the given thread.
@@ -561,36 +654,7 @@ class Interpreter(object):
             return True
 
         # Advance instruction pointer to the next line.
-        next_inst = self.step_over(inst['id'])
-
-        self.exit_conditional(call, inst)
-
-        # If this is the end of a block (no more lines), resume the outer block.
-        if next_inst is None:
-            current = inst
-
-            while current['parent_id'] is not None:
-                # Look up the parent instruction if there is one.
-                parent_inst = None if current['parent_id'] is None \
-                              else self.get_instruction(current['parent_id'])
-
-                # Check if we are leaving a loop and repeat if so.
-                if parent_inst is not None and \
-                   parent_inst['code']['kind'] in ['while', 'foreach']:
-                    next_inst = parent_inst
-                    break
-
-                next_inst = self.step_out(current['id'])
-
-                # Perform any needed cleanup on the conditional stack.
-                self.exit_conditional(call, parent_inst)
-
-                if next_inst is not None:
-                    break
-
-                current = parent_inst
-
-        self.call_advance(call, next_inst)
+        self.step_over_or_out_greedy(call, inst)
 
         # Execution can continue
         return True
@@ -621,35 +685,60 @@ class Interpreter(object):
 
     def eval_break(self, call, break_inst):
         """
-        Break out of one or more loops.
+        Break and/or continue out of one or more loops.
 
         Arguments:
             call (dict): The call stack frame to execute within.
-            break_inst (dict): The break instruction being evaluated.
+            break_inst (dict): The break/continue instruction being evaluated.
 
         """
 
-        current = break_inst
+        is_break = (break_inst['code']['kind'] == 'break')
 
-        # Loop as long as there are parent instructions (until we are no longer
-        # in a block).
-        while current['parent_id'] is not None:
-            # Look up the parent instruction
-            parent_inst = self.get_instruction(current['parent_id'])
+        target_label = None
+        break_count = 1
 
-            # If the next level above this one is a loop, break out of it
-            # and end the break eval.
-            if parent_inst['code']['kind'] in ['while', 'foreach']:
-                next_inst = self.step_out(current['id'])
+        # If it has an expression, it's either a number of loops to break out
+        # of or a label name.
+        if 'expression' in break_inst['code']:
+            tokens = break_inst['code']['expression']['tokens']
 
-                self.call_advance(call, next_inst)
+            # Try to get a label name.
+            try:
+                identifier = tokens[0]['tokens'][0]
+                if identifier['cls'] == 'identifier':
+                    target_label = identifier['val']
+            except KeyError:
+                pass
+            except IndexError:
+                pass
 
-                return
+            # If it wasn't a label name, it should be a number of loops.
+            if target_label is None:
+                break_count = int(self.eval_expression_token(call, tokens))
 
-            # Perform any needed cleanup on the conditional stack.
-            self.exit_conditional(call, parent_inst)
+        found = None
 
-            current = parent_inst
+        for loop in self.step_up_loops(call, break_inst):
+            # If no target_label, break out of the specified number of loops.
+            if target_label is None:
+                break_count -= 1
+                if break_count == 0:
+                    found = loop
+                    break
+            # Otherwise, break out of loops up to and including the given label.
+            else:
+                if loop['label'] == target_label:
+                    found = loop
+                    break
+
+        if found is not None:
+            # Break the target loop and continue execution after.
+            if is_break:
+                self.step_over_or_out_greedy(call, found)
+            # Continue execution at the start of the target loop.
+            else:
+                self.call_advance(call, found)
 
 
     def type_check(self, token):
@@ -989,7 +1078,6 @@ class Interpreter(object):
 
             # There should only be one token left after all operator passes.
             if len(tokens) > 1:
-                print(tokens)
                 raise Exception("Expression could not be completely evaluated.")
 
             # Return the final evaluated result.
@@ -1276,7 +1364,7 @@ class Interpreter(object):
             return process_conditional_block()
 
         # Execute break statement
-        elif inst['code']['kind'] == 'break':
+        elif inst['code']['kind'] in ['break', 'continue']:
             self.eval_break(call, inst)
             # Do not advance the instruction pointer, it has been moved by
             # break.

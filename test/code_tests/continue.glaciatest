@@ -1,0 +1,20 @@
+1
+2
+3
+---
+int main()
+{
+    int x = 0;
+
+    while (true)
+    {
+        x = x + 1;
+
+        print(x);
+
+        if (x < 3)
+            continue;
+
+        break;
+    }
+}

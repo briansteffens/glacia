@@ -1,0 +1,18 @@
+3
+7
+---
+int main()
+{
+    list ar;
+    ar.push(3);
+    ar.push(7);
+
+    foreach (f in ar)
+    {
+        while (true)
+        {
+            print(f);
+            continue 2;
+        }
+    }
+}

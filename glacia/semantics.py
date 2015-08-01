@@ -1,5 +1,5 @@
 from glacia import (Program, Function, Expression, Binding, Assignment, If,
-                    Return, Parameter, Else, While, Break, Foreach)
+                    Return, Parameter, Else, While, Break, Foreach, Continue)
 from glacia.parser import Node
 
 
@@ -135,6 +135,17 @@ def analyze_block_contents(state, node, identify=True):
 
             ret.append(inst)
 
+        # Check to see if this instruction is labeled.
+        label = None
+        try:
+            if n.tokens[0].kind == 'identifier' and n.tokens[1].val == ':':
+                label = n.tokens[0].val
+                del n.tokens[0:2]
+        except KeyError:
+            pass
+        except IndexError:
+            pass
+
         identify_keywords(n.tokens)
         identify_bindings(state, n.tokens)
 
@@ -180,12 +191,19 @@ def analyze_block_contents(state, node, identify=True):
             ret.append(Break(None if len(n.tokens) < 2
                                   else Expression(n.tokens[1:])))
 
+        elif hasattr(n.tokens[0], 'val') and n.tokens[0].val == 'continue':
+            ret.append(Continue(None if len(n.tokens) < 2
+                                     else Expression(n.tokens[1:])))
+
         else:
             assignment = identify_assignment(n.tokens)
             if assignment:
                 ret.append(assignment)
             else:
                 ret.append(Expression(n.tokens))
+
+        # If the instruction was labeled, apply it here.
+        ret[-1].label = label
 
         i += 1
 
@@ -246,7 +264,8 @@ def identify_keywords(tokens):
 
         # Also: push, pop, len
         keywords = ['if', 'return', 'int', 'static', 'else', 'while', 'list',
-                    'break', 'foreach', 'in', 'bool', 'true', 'false']
+                    'break', 'foreach', 'in', 'bool', 'true', 'false',
+                    'continue']
 
         if token.kind == 'identifier' and token.val in keywords:
             token.kind = 'keyword'

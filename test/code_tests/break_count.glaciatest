@@ -1,0 +1,24 @@
+3
+7
+done
+---
+int main()
+{
+    list ar;
+    ar.push(3);
+    ar.push(7);
+
+    foreach (x in ar)
+    {
+        while (true)
+        {
+            while (true)
+            {
+                print(x);
+                break 2;
+            }
+        }
+    }
+
+    print("done");
+}

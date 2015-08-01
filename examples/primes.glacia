@@ -1,27 +1,23 @@
 int main()
 {
     list found;
-    int x = 2;
+    found.push(2);
 
-    while (true)
+    int check = 1;
+
+    next: while (true)
     {
-        bool success = true;
+        check = check + 2;
 
-        foreach (f in found)
+        foreach (previous in found)
         {
-            if (x % f == 0)
+            if (check % previous == 0)
             {
-                success = false;
-                break;
+                continue next;
             }
         }
 
-        if (success)
-        {
-            found.push(x);
-            print(x);
-        }
-
-        x = x + 1;
+        found.push(check);
+        print(check);
     }
 }

@@ -16,9 +16,11 @@ create table instructions
 ,   parent_id char(3) null
 ,   previous_id char(3) null
 ,   code text
+,   label varchar(64) null
 
 ,   primary key (id)
 ,   unique (function_id, parent_id, previous_id)
+,   unique (function_id, label)
 ,   foreign key (function_id) references functions (id)
 ,   foreign key (parent_id) references instructions (id)
 ,   foreign key (previous_id) references instructions (id)

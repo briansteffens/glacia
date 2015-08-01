@@ -50,11 +50,13 @@ def load_block(db, func_id, parent_id, instructions):
         if "body" in copy:
             del copy["body"]
 
+        label = copy["label"] if "label" in copy else None
+
         previous_id = db.autoid(
             "insert into instructions " +
-            "(id, function_id, parent_id, previous_id, code) " +
-            "values ({$id}, %s, %s, %s, %s);",
-            (func_id, parent_id, previous_id, json.dumps(copy),))
+            "(id, function_id, parent_id, previous_id, code, label) " +
+            "values ({$id}, %s, %s, %s, %s, %s);",
+            (func_id, parent_id, previous_id, json.dumps(copy), label))
 
         # Recursion
         if 'body' in instruction:
