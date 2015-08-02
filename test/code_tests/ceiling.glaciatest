@@ -1,0 +1,8 @@
+3
+7
+---
+function main()
+{
+    print(ceiling(5 / 2));
+    print(ceiling(13 / 2));
+}

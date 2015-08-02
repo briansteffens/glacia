@@ -1,5 +1,6 @@
 import json
 from random import randint
+from math import ceil, floor
 
 
 loop_keywords = ['while', 'foreach', 'for']
@@ -203,6 +204,18 @@ class Interpreter(object):
 
             return ret_list([{'type': 'int', 'val': r}
                              for r in range(rng_start, rng_stop, rng_step)])
+
+        elif func_name == 'ceiling':
+            return {
+                'type': 'int',
+                'val': ceil(self.eval_expression_token(current_call,evaled[0])),
+            }
+
+        elif func_name == 'floor':
+            return {
+                'type': 'int',
+                'val': floor(self.eval_expression_token(current_call,evaled[0]))
+            }
 
         # Look up the function in the database
         function = self.db.first("select * from functions where label = %s;",

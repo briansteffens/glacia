@@ -1,0 +1,8 @@
+3
+7
+---
+function main()
+{
+    print(floor(7 / 2));
+    print(floor(15 / 2));
+}
