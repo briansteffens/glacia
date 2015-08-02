@@ -1,9 +1,7 @@
-int main()
+function main()
 {
-    list found;
-    found.push(2);
-
-    int check = 1;
+    found = list(2);
+    check = 1;
 
     next: while (true)
     {
