@@ -1,0 +1,30 @@
+def inner(find, lst, start, stop)
+{
+    if (start > stop)
+        return 0;
+
+    midpoint = ceiling((stop - start) / 2);
+
+    // Search to the left.
+    if (lst[midpoint] > find)
+        return inner(find, lst, start, midpoint);
+
+    // Search to the right.
+    else if (lst[midpoint] < find)
+        return inner(find, lst, midpoint + 1, stop);
+
+    // Found it.
+    else
+        return midpoint;
+}
+
+def search(find, lst)
+{
+    return inner(find, lst, 0, lst.len());
+}
+
+def main()
+{
+    print(search(7, list(3, 4, 6, 7, 8)));
+    print(search(4, list(3, 4, 6, 7, 8)));
+}
