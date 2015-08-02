@@ -2,11 +2,9 @@
 7
 done
 ---
-int main()
+function main()
 {
-    list found;
-    found.push(3);
-    found.push(7);
+    found = list(3, 7);
 
     foreach (f in found)
     {

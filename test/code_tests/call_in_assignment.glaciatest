@@ -1,0 +1,12 @@
+7
+---
+function f(a, b)
+{
+    return a + b;
+}
+
+function main()
+{
+    x = f(3, 4);
+    print(x);
+}

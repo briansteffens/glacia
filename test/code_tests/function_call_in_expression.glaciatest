@@ -1,11 +1,11 @@
 15
 ---
-int a()
+function a()
 {
     return 3;
 }
 
-int main()
+function main()
 {
     print(5 * a());
 }

@@ -1,7 +1,7 @@
 5
 ---
-int main()
+function main()
 {
-    int x = 5;
+    x = 5;
     print(x);
 }

@@ -2,9 +2,9 @@
 1
 2
 ---
-int main()
+function main()
 {
-    int x = 0;
+    x = 0;
     while (1 == 1)
     {
         print(x);

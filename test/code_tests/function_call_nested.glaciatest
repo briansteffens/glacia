@@ -1,16 +1,16 @@
 Greetings.
 ---
-int b()
+function b()
 {
     print("Greetings.");
 }
 
-int a()
+function a()
 {
     b();
 }
 
-int main()
+function main()
 {
     a();
 }

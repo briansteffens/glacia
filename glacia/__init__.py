@@ -191,12 +191,11 @@ class Expression(object):
 
 class Parameter(object):
 
-    def __init__(self, type_, name):
-        self.type = type_
+    def __init__(self, name):
         self.name = name
 
     def __str__(self):
-        return 'param<'+self.type+" "+self.name+'>'
+        return 'param<'+self.name+'>'
 
 
 class Argument(object):

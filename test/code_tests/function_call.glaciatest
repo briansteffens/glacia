@@ -1,11 +1,11 @@
 Greetings!
 ---
-int f()
+function f()
 {
     print("Greetings!");
 }
 
-int main()
+function main()
 {
     f();
 }

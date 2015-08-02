@@ -2,7 +2,7 @@
 1
 5
 ---
-int main()
+function main()
 {
     print(4 % 2);
     print(7 % 3);

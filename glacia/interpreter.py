@@ -1,4 +1,5 @@
 import json
+from random import randint
 
 
 loop_keywords = ['while', 'foreach', 'for']
@@ -161,6 +162,25 @@ class Interpreter(object):
         elif func_name == 'finished':
             return self.generator_finished(current_call, evaled[0])
 
+        elif func_name == 'list':
+            list_ident = {
+                'label': self.generate_local_label(current_call,
+                                                   'temp_list_{$r}')
+            }
+
+            self.create_local(current_call['id'],list_ident['label'],'list',0)
+
+            for item in evaled:
+                self.list_push(current_call, list_ident, item)
+
+            return {
+                'type': 'ref',
+                'val': self.get_local(current_call['id'],
+                                      list_ident['label'])['address_id'],
+            }
+            return self.get_local(current_call['id'], list_ident['label'])
+
+
         # Look up the function in the database
         function = self.db.first("select * from functions where label = %s;",
                                  (func_name,))
@@ -201,25 +221,50 @@ class Interpreter(object):
             # Some types automatically pass by reference. Detect that here.
             ref = None
             val = None
+            type_ = None
             try:
                 mem = self.mem_read(expr['address_id'])
                 if mem['type'] in ['list']:
                     ref = mem['id']
+                    type_ = mem['type']
                 else:
                     raise KeyError
             except KeyError:
                 pass
             finally:
-                val = self.eval_expression_token(call, expr)
+                val_full = self.resolve(self.eval_expression(call, expr))
+
+                if 'address_id' in val_full:
+                    val_full = self.mem_read(ret['address_id'],ref_resolve=True)
+
+                type_ = val_full['type']
+                val = self.eval_expression_token(call, val_full)
 
             self.create_local(call_id, function['arguments'][i]['name'],
-                              function['arguments'][i]['type'], val, ref=ref)
+                              type_, val, ref=ref)
 
         if function['return_type'] == 'generator':
             return {
                 'type': 'generator',
                 'val': call_id,
             }
+
+
+    def resolve(self, local):
+        """
+        Looks up the value of a local, resolving references automatically.
+
+        """
+
+        ret = local
+
+        if 'address_id' in ret:
+            ret = self.mem_read(ret['address_id'])
+
+            while ret['type'] == 'ref':
+                ret = self.mem_read[ret['val']]
+
+        return ret
 
 
     def generator_next(self, call, generator, caller_id):
@@ -505,12 +550,13 @@ class Interpreter(object):
         return ret
 
 
-    def mem_read(self, addr):
+    def mem_read(self, addr, ref_resolve=False):
         """
         Read virtual database memory directly.
 
         Arguments:
             addr (str): The memory address to read.
+            ref_resolve (bool): Whether to recursively resolve any refs found.
 
         Returns:
             The address in memory in dict format.
@@ -518,6 +564,10 @@ class Interpreter(object):
         """
 
         ret = self.db.first("select * from addresses where id = %s;", (addr,))
+
+        # If it's a reference, resolve it.
+        while ret['type'] == 'ref':
+            ret = self.mem_read(ret['val'])
 
         return self.type_check(ret)
 
@@ -567,6 +617,32 @@ class Interpreter(object):
         self.db.cmd("delete from addresses where id = %s;", (addr,))
 
 
+    def generate_local_label(self, call, label_format):
+        """
+        Generate an unused label name in the given call stack frame.
+
+        Arguments:
+            call (dict): The call stack frame to generate the label in.
+            label_format (str): The format of the label to generate.
+                                Ex: "__temp_var_{$r}". {$r} will be replaced
+                                with random numbers until one is free.
+
+        Returns:
+            The generated label.
+
+        """
+
+        for tries in range(10):
+            check = label_format.replace('{$r}', str(randint(0, 10000)))
+
+            if 0 == self.db.scalar("select count(1) from locals " +
+                                   "where call_id = %s and label = %s;",
+                                   (call['id'], check)):
+                return check
+
+            print('local collision')
+
+
     def create_local(self, call_id, label, type_, val, ref=None):
         """
         Create and set a local variable.
@@ -579,6 +655,9 @@ class Interpreter(object):
             ref (str): If present, refers to an existing memory address ID to
                        make the local refer to instead of allocating new
                        memory. val is ignored if ref is present.
+
+        Returns:
+            The newly-created local ID.
 
         """
 
@@ -597,9 +676,11 @@ class Interpreter(object):
                         (addr, existing['id'],))
             return
 
-        self.db.autoid("insert into locals (id, call_id, label, address_id) " +
-                       "values ({$id}, %s, %s, %s);",
-                       (call_id, label, addr))
+        r=self.db.autoid("insert into locals (id, call_id, label, address_id) "+
+                         "values ({$id}, %s, %s, %s);",
+                         (call_id, label, addr))
+
+        return r
 
 
     def get_local(self, call_id, label):
@@ -641,12 +722,13 @@ class Interpreter(object):
         Arguments:
             call_id (str): The call stack frame to search in.
             label (str): The name of the local to search for.
-            val (any): The new value to assign to the local.
+            val (dict): The new value to assign to the local in dict-format
+                        (with type information).
 
         """
         local = self.get_local(call_id, label)
         mem = self.mem_read(local['address_id'])
-        self.mem_write(local['address_id'], {'val': val, 'type': mem['type']})
+        self.mem_write(local['address_id'], val)
 
 
     def step_up(self, call, inst):
@@ -975,7 +1057,7 @@ class Interpreter(object):
 
         # Lookup the list.
         local = self.get_local(call['id'], target['label'])
-        mem = self.mem_read(local['address_id'])
+        mem = self.mem_read(local['address_id'], ref_resolve=True)
 
         # Make sure the local found is a list.
         if mem['type'] != 'list':
@@ -997,7 +1079,7 @@ class Interpreter(object):
 
         """
         local = self.get_list(call, target)
-        mem = self.mem_read(local['address_id'])
+        mem = self.mem_read(local['address_id'], ref_resolve=True)
 
         return 0 if mem['val'] is None else mem['val']
 
@@ -1269,18 +1351,16 @@ class Interpreter(object):
         binding = self.eval_expression(call, inst['code']['binding'],
                                        assignment_target=True)
 
-        # If there are modifiers (like int, string, static), create a local.
-        if len(inst['code']['modifiers']) > 0:
-            if len(inst['code']['modifiers']) > 1:
+        # If the binding could not be resolved (it doesn't exist yet), create
+        # a new local.
+        if binding is None:
+            if len(inst['code']['modifiers']) > 0:
                 raise NotImplemented
 
-            type_ = inst['code']['modifiers'][0]
-
-            if type_ == 'var':
-                if 'address_id' in val:
-                    type_ = self.mem_read(val['address_id'])['type']
-                else:
-                    type_ = val['type']
+            if 'address_id' in val:
+                type_ = self.mem_read(val['address_id'])['type']
+            else:
+                type_ = val['type']
 
             self.create_local(call['id'], bind, type_, val_stripped)
 
@@ -1292,7 +1372,7 @@ class Interpreter(object):
 
             # Otherwise treat it as a standard local.
             else:
-                self.set_local(call['id'], bind, val_stripped)
+                self.set_local(call['id'], bind, val)
 
 
     def is_true(self, token):

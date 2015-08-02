@@ -2,13 +2,9 @@
 7
 13
 ---
-int main()
+function main()
 {
-    list ar;
-
-    ar.push(3);
-    ar.push(7);
-    ar.push(13);
+    ar = list(3, 7, 13);
 
     foreach (n in ar)
     {

@@ -13,7 +13,6 @@ def generate(program):
         'return_type': f.return_type,
         'params': [{
             'cls': 'param',
-            'type': p.type,
             'name': p.name,
         } for p in f.params],
         'body': generate_block(f.body),

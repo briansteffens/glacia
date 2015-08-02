@@ -1,9 +1,9 @@
 5
 7
 ---
-int main()
+function main()
 {
-    list c;
+    c = list();
 
     push(c, 5);
     c.push(7);

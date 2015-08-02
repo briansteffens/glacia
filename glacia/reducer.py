@@ -92,7 +92,7 @@ def extract_calls(instruction, state):
             binding = state.next_id_binding()
             del deepest.ar[deepest.ar_index]
             deepest.ar.insert(deepest.ar_index, binding)
-            yield Assignment([Token('keyword', 'var')], binding,
+            yield Assignment([], binding,
                              Expression([deepest.call], process_calls=False))
 
     if hasattr(instruction, 'expression') and \

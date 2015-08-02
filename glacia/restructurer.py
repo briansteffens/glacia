@@ -55,7 +55,7 @@ def restructure_instruction(instruction, state):
 
     elif instruction.kind == 'for':
         # Initialize the item variable (f in "for (f in items)")
-        pre_instructions.append(Assignment([Token('keyword', 'var')],
+        pre_instructions.append(Assignment([],
                                 instruction.expression.tokens[0],
                                 Expression([Token('numeric', '0')])))
 
@@ -64,7 +64,7 @@ def restructure_instruction(instruction, state):
             gen_temp = state.next_id_binding()
 
             pre_instructions.append(
-                Assignment([Token('keyword', 'var')], gen_temp,
+                Assignment([], gen_temp,
                 Expression([instruction.expression.tokens[2]])))
 
             instruction.expression.tokens[2] = gen_temp
@@ -96,12 +96,11 @@ def restructure_instruction(instruction, state):
         indexer_temp_var = state.next_id_binding()
 
         # Set the temp var to -1 before the foreach loop.
-        pre_instructions.append(Assignment([Token('keyword', 'var')],
-                                indexer_temp_var,
+        pre_instructions.append(Assignment([], indexer_temp_var,
                                 Expression([Token('numeric', '-1')])))
 
         # Initialize the item variable (f in "foreach (f in items)")
-        pre_instructions.append(Assignment([Token('keyword', 'var')],
+        pre_instructions.append(Assignment([],
                                 instruction.expression.tokens[0],
                                 Expression([Token('numeric', '0')])))
 
@@ -129,9 +128,8 @@ def restructure_instruction(instruction, state):
         container_bind = instruction.expression.tokens[2].copy()
         container_bind.tokens.append(idx)
 
-        assign = Assignment([Token('keyword', 'var')],
-                             instruction.expression.tokens[0],
-                             Expression([container_bind]))
+        assign = Assignment([], instruction.expression.tokens[0],
+                            Expression([container_bind]))
 
         instruction.body.insert(2, assign)
         instruction.expression = None

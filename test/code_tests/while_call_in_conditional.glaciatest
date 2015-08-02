@@ -2,14 +2,14 @@
 2
 3
 ---
-int f(int x)
+function f(x)
 {
     return x;
 }
 
-int main()
+function main()
 {
-    int i = 1;
+    i = 1;
     while (f(i) < 4)
     {
         print(i);

@@ -2,9 +2,9 @@
 2
 3
 ---
-int main()
+function main()
 {
-    list c;
+    c = list();
 
     print(len(c));
 

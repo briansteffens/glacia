@@ -1,12 +1,12 @@
 21
 ---
-int a(int x)
+function a(x)
 {
     print(x);
 }
 
-int main()
+function main()
 {
-    int y = 3;
+    y = 3;
     a(y * 7);
 }

@@ -2,9 +2,9 @@
 ---
 // starting with
 /* comments */
-int main()
+function main()
 {
-    int x = 7; // something
+    x = 7; // something
 
     /*
     x = 3; // comment in a comment

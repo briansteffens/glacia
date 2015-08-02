@@ -1,12 +1,12 @@
 7
 ---
-int a(int x)
+function a(x)
 {
     print(x);
 }
 
-int main()
+function main()
 {
-    int y = 7;
+    y = 7;
     a(y);
 }

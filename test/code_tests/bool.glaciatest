@@ -5,10 +5,10 @@ no c
 yes true
 no false
 ---
-int main()
+function main()
 {
-    bool b = true;
-    bool c = false;
+    b = true;
+    c = false;
 
     print(b);
     print(c);

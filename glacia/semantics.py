@@ -71,10 +71,10 @@ def analyze_function(state, node):
 
         # End of argument in buffer
         if tk.val == ',' or (len(buffer) > 0 and len(params) == 0):
-            if len(buffer) != 2:
+            if len(buffer) != 1:
                 raise Exception('Invalid argument definition.')
 
-            func.params.append(Parameter(buffer[0].val, buffer[1].val))
+            func.params.append(Parameter(buffer[0].val))
 
             buffer = []
             continue
@@ -284,7 +284,7 @@ def identify_keywords(tokens):
             continue
 
         # Also: push, pop, len
-        keywords = ['if', 'return', 'int', 'static', 'else', 'while', 'list',
+        keywords = ['if', 'return', 'int', 'static', 'else', 'while',
                     'break', 'foreach', 'in', 'bool', 'true', 'false',
                     'continue', 'generator', 'yield', 'for']
 

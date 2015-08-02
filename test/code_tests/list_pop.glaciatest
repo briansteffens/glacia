@@ -1,12 +1,9 @@
 7
 5
 ---
-int main()
+function main()
 {
-    list c;
-
-    push(c, 5);
-    push(c, 7);
+    c = list(5, 7);
 
     print(pop(c));
     print(c.pop());

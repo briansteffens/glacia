@@ -1,17 +1,17 @@
 yes 1
 no 2
 ---
-bool yes()
+function yes()
 {
     return true;
 }
 
-bool no()
+function no()
 {
     return false;
 }
 
-int main()
+function main()
 {
     if (yes())
         print("yes 1");

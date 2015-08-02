@@ -1,9 +1,9 @@
 pass 1
 pass 2
 ---
-int main()
+function main()
 {
-    int i = 3;
+    i = 3;
 
     if (i == 2)
     {

@@ -1,11 +1,11 @@
 3
 ---
-int f(int x)
+function f(x)
 {
     print(x);
 }
 
-int main()
+function main()
 {
     f(3);
 }

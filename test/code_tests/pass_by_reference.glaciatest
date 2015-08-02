@@ -3,7 +3,7 @@
 2
 7
 ---
-int f(list lst)
+function f(lst)
 {
     print(lst.len());
     print(lst[0]);
@@ -11,11 +11,9 @@ int f(list lst)
     push(lst, 7);
 }
 
-int main()
+function main()
 {
-    list c;
-
-    c.push(3);
+    c = list(3);
 
     f(c);
 

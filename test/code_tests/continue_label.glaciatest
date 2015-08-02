@@ -1,11 +1,9 @@
 3
 7
 ---
-int main()
+function main()
 {
-    list ar;
-    ar.push(3);
-    ar.push(7);
+    ar = list(3, 7);
 
     something: foreach (f in ar)
     {

@@ -1,14 +1,14 @@
 3
 3
 ---
-def a()
+function a()
 {
     return 3;
 }
 
-int main()
+function main()
 {
-    int i = 2;
+    i = 2;
     while (i > 0)
     {
         i = i - 1;

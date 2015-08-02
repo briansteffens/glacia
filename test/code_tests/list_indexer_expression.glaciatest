@@ -2,14 +2,11 @@
 7
 5
 ---
-int main()
+function main()
 {
-    list ar;
+    ar = list(3, 7);
 
-    ar.push(3);
-    ar.push(7);
-
-    int x = 0;
+    x = 0;
     print(ar[x]);
     print(ar[x + 1]);
 

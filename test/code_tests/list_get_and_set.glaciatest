@@ -1,12 +1,9 @@
 3
 7
 ---
-int main()
+function main()
 {
-    list ar;
-
-    ar[0] = 3;
-    ar[1] = 7;
+    ar = list(3, 7);
 
     print(ar[0]);
     print(ar[1]);
