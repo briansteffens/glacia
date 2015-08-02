@@ -1,0 +1,15 @@
+def f(current, total)
+{
+    if (current % 10 == 0)
+        print(current);
+
+    if (current < total)
+        return f(current + 1, total);
+
+    return "hello";
+}
+
+def main()
+{
+    print(f(0, 1000));
+}
