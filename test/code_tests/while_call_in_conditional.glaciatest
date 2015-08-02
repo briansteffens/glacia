@@ -2,12 +2,12 @@
 2
 3
 ---
-function f(x)
+def f(x)
 {
     return x;
 }
 
-function main()
+def main()
 {
     i = 1;
     while (f(i) < 4)

@@ -6,7 +6,7 @@
 6
 7
 ---
-function r(x)
+def r(x)
 {
     if (x > 1)
     {
@@ -16,7 +16,7 @@ function r(x)
     print(x);
 }
 
-function main()
+def main()
 {
     r(7);
 }

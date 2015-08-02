@@ -1,6 +1,6 @@
 5
 ---
-function main()
+def main()
 {
     x = 5;
     print(x);

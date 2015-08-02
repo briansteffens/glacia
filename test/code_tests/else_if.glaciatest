@@ -1,7 +1,7 @@
 pass 1
 pass 2
 ---
-function main()
+def main()
 {
     x = 3;
 

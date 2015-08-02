@@ -7,7 +7,7 @@
 4
 6
 ---
-function main()
+def main()
 {
     foreach (r in range(3))
         print(r);

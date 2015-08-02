@@ -5,7 +5,7 @@ no c
 yes true
 no false
 ---
-function main()
+def main()
 {
     b = true;
     c = false;

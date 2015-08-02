@@ -1,11 +1,11 @@
 3
 ---
-function f()
+def f()
 {
     return 3;
 }
 
-function main()
+def main()
 {
     print(f());
 }

@@ -1,6 +1,6 @@
 3
 ---
-function main()
+def main()
 {
     x = 7;
 

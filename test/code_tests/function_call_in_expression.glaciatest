@@ -1,11 +1,11 @@
 15
 ---
-function a()
+def a()
 {
     return 3;
 }
 
-function main()
+def main()
 {
     print(5 * a());
 }

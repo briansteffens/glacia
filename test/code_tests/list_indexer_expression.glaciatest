@@ -2,7 +2,7 @@
 7
 5
 ---
-function main()
+def main()
 {
     ar = list(3, 7);
 

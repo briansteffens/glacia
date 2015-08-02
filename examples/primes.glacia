@@ -1,12 +1,11 @@
-function main()
+def main()
 {
     found = list(2);
-    check = 1;
+    print(2);
 
-    next: while (true)
+    // Check numbers from 3 to 100, skipping even numbers.
+    next: foreach (check in range(3, 100, 2))
     {
-        check = check + 2;
-
         foreach (previous in found)
         {
             if (previous > check / 2)

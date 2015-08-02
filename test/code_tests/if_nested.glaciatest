@@ -2,7 +2,7 @@ pass 1
 pass 2
 pass 3
 ---
-function main()
+def main()
 {
     x = 3;
     y = 7;

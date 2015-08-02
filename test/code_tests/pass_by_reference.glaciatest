@@ -3,7 +3,7 @@
 2
 7
 ---
-function f(lst)
+def f(lst)
 {
     print(lst.len());
     print(lst[0]);
@@ -11,7 +11,7 @@ function f(lst)
     push(lst, 7);
 }
 
-function main()
+def main()
 {
     c = list(3);
 

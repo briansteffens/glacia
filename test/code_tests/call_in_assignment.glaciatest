@@ -1,11 +1,11 @@
 7
 ---
-function f(a, b)
+def f(a, b)
 {
     return a + b;
 }
 
-function main()
+def main()
 {
     x = f(3, 4);
     print(x);

@@ -1,7 +1,7 @@
 7
 5
 ---
-function main()
+def main()
 {
     c = list(5, 7);
 

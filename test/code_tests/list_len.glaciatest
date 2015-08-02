@@ -2,7 +2,7 @@
 2
 3
 ---
-function main()
+def main()
 {
     c = list();
 

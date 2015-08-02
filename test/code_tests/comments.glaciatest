@@ -2,7 +2,7 @@
 ---
 // starting with
 /* comments */
-function main()
+def main()
 {
     x = 7; // something
 

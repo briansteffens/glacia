@@ -1,6 +1,6 @@
 Greetings.
 ---
-function main()
+def main()
 {
     print("Greetings.");
 }

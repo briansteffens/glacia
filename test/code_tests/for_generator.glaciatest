@@ -13,7 +13,7 @@ generator numbers(total)
     }
 }
 
-function main()
+def main()
 {
     gen = numbers(3);
 

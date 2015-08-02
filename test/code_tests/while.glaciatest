@@ -2,7 +2,7 @@
 2
 3
 ---
-function main()
+def main()
 {
     x = 1;
     while (x < 4)
