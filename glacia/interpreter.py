@@ -123,6 +123,23 @@ class Interpreter(object):
                     },
                 }))
 
+        # Helper function for generating inline lists.
+        def ret_list(items):
+            list_ident = {
+                'label': self.generate_local_label(current_call, '__temp{$r}')
+            }
+
+            self.create_local(current_call['id'],list_ident['label'],'list',0)
+
+            for item in items:
+                self.list_push(current_call, list_ident, item)
+
+            return {
+                'type': 'ref',
+                'val': self.get_local(current_call['id'],
+                                      list_ident['label'])['address_id'],
+            }
+
         # Process built-ins
         if func_name == 'print':
             arg = eval_arg(0)
@@ -163,23 +180,29 @@ class Interpreter(object):
             return self.generator_finished(current_call, evaled[0])
 
         elif func_name == 'list':
-            list_ident = {
-                'label': self.generate_local_label(current_call,
-                                                   'temp_list_{$r}')
-            }
+            return ret_list(evaled)
 
-            self.create_local(current_call['id'],list_ident['label'],'list',0)
+        elif func_name == 'range':
+            rng_start = 0
+            rng_stop = 0
+            rng_step = 1
 
-            for item in evaled:
-                self.list_push(current_call, list_ident, item)
+            evaled_tokens = [int(self.eval_expression_token(current_call, t))
+                             for t in evaled]
 
-            return {
-                'type': 'ref',
-                'val': self.get_local(current_call['id'],
-                                      list_ident['label'])['address_id'],
-            }
-            return self.get_local(current_call['id'], list_ident['label'])
+            if len(evaled_tokens) == 1:
+                rng_stop = evaled_tokens[0]
+            elif len(evaled_tokens) > 1:
+                rng_start = evaled_tokens[0]
+                rng_stop = evaled_tokens[1]
 
+                if len(evaled_tokens) == 3:
+                    rng_step = evaled_tokens[2]
+                elif len(evaled_tokens) > 3:
+                    raise NotImplemented("Too many arguments to range().")
+
+            return ret_list([{'type': 'int', 'val': r}
+                             for r in range(rng_start, rng_stop, rng_step)])
 
         # Look up the function in the database
         function = self.db.first("select * from functions where label = %s;",

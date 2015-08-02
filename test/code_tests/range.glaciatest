@@ -1,0 +1,20 @@
+0
+1
+2
+2
+3
+4
+4
+6
+---
+function main()
+{
+    foreach (r in range(3))
+        print(r);
+
+    foreach (r in range(2, 5))
+        print(r);
+
+    foreach (r in range(4, 8, 2))
+        print(r);
+}

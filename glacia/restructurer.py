@@ -43,6 +43,16 @@ def restructure_instruction(instruction, state):
 
     pre_instructions = []
 
+    def for_call_break_out():
+        if instruction.expression.tokens[2].kind == 'call':
+            gen_temp = state.next_id_binding()
+
+            pre_instructions.append(
+                Assignment([], gen_temp,
+                Expression([instruction.expression.tokens[2]])))
+
+            instruction.expression.tokens[2] = gen_temp
+
     if instruction.kind == 'while':
         parenth = Token('parenthesis', None)
         parenth.tokens = instruction.expression.tokens
@@ -60,14 +70,7 @@ def restructure_instruction(instruction, state):
                                 Expression([Token('numeric', '0')])))
 
         # Calls should be broken out before the loop.
-        if instruction.expression.tokens[2].kind == 'call':
-            gen_temp = state.next_id_binding()
-
-            pre_instructions.append(
-                Assignment([], gen_temp,
-                Expression([instruction.expression.tokens[2]])))
-
-            instruction.expression.tokens[2] = gen_temp
+        for_call_break_out()
 
         # Inside the loop, start by calling next() on the generator.
         next_bind = instruction.expression.tokens[2].copy()
@@ -103,6 +106,9 @@ def restructure_instruction(instruction, state):
         pre_instructions.append(Assignment([],
                                 instruction.expression.tokens[0],
                                 Expression([Token('numeric', '0')])))
+
+        # Calls should be broken out before the loop.
+        for_call_break_out()
 
         # Inside the loop, start by incrementing the indexer.
         increment = Assignment([], indexer_temp_var,
