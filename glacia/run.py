@@ -85,7 +85,6 @@ def run(fn=None, src=None, exec_lines=-1, verbose=False, collect_stdout=False):
         run_stage('Restructured', restructure)
         run_stage('Reduced', reduce)
         run_stage('Parameterized', parameterize)
-        run_stage('Sweetened', sweeten)
 
         generated = generate(program)
 
