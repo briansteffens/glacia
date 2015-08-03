@@ -10,7 +10,6 @@ from glacia.semantics import analyze
 from glacia.restructurer import restructure
 from glacia.reducer import reduce
 from glacia.parameterizer import parameterize
-from glacia.sweetener import sweeten
 from glacia.generator import generate
 from glacia.loader import load
 from glacia.interpreter import interpret, Interpreter
