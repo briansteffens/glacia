@@ -1,0 +1,16 @@
+def average(numbers)
+{
+    sum = 0;
+
+    foreach (number in numbers)
+    {
+        sum = sum + number;
+    }
+
+    return ceiling(sum / numbers.len());
+}
+
+def main()
+{
+    print(average(list(2, 3, 20)));
+}

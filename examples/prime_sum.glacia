@@ -1,0 +1,32 @@
+generator primes(max)
+{
+    found = list(2);
+    yield 2;
+
+    // Check numbers from 3 to max, skipping even numbers.
+    next: foreach (check in range(3, max, 2))
+    {
+        foreach (previous in found)
+        {
+            if (previous > check / 2)
+                break;
+
+            if (check % previous == 0)
+                continue next;
+        }
+
+        found.push(check);
+        yield check;
+    }
+}
+
+def main()
+{
+    sum = 0;
+
+    for (prime in primes(1000))
+    {
+        sum = sum + prime;
+        print(sum);
+    }
+}
